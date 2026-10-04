@@ -1,0 +1,20 @@
+/** 애플리케이션 URL을 한 곳에서 관리한다. */
+export const ROUTES = {
+  ONBOARDING: '/',
+  HOME: '/home',
+  AUTH_LOGIN: '/auth/login',
+  AUTH_SIGNUP: '/auth/signup',
+  AUTH_COMPLETE: '/auth/complete',
+  WIKI_SEARCH: '/wiki/search/:searchType',
+  WIKI_ADD_EMPTY: '/wiki/add/empty',
+  WIKI_ADD_PAGE: '/wiki/add/page',
+  WIKI_DETAIL: '/wiki/:wikiId',
+  WIKI_RELATION: '/wiki/:wikiId/relations',
+  WIKI_REGISTER: '/wiki/register',
+  WIKI_REGISTER_PERSON: '/wiki/register/person',
+  WIKI_REGISTER_GROUP: '/wiki/register/group',
+  WIKI_REGISTER_GROUP_DETAIL: '/wiki/register/group/detail',
+  WIKI_REVIEW_LIST: '/wiki/reviews',
+  WIKI_REVIEW_PROGRESS: '/wiki/reviews/:reviewId',
+  MY: '/my',
+}
