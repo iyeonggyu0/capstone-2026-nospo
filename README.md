@@ -164,8 +164,6 @@ PR 리뷰 체크:
 ```text
 feat/login-page
 fix/auth-redirect
-design/home-banner
-refactor/api-client
 ```
 
 현재 GitHub 저장소에서는 브랜치 이름을 자동으로 강제하지 않는다. 팀원은 권장 형식을 따른다.
