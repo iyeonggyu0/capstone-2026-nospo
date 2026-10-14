@@ -50,6 +50,51 @@ src/
 - 두 개 이상의 feature에서 쓰는 코드는 `components`, `hooks`, `lib`, `constants`로 이동한다. 공통 레이어는 feature를 import하지 않는다.
 - URL 문자열은 `src/constants/routes.js`에서 한 번만 정의하고, `src/routes`에서는 lazy loading을 적용한다.
 
+## 공통 레이아웃 · 헤더 · 푸터
+
+`RootLayout`은 모든 라우트를 `MainLayout`으로 감싼다. `MainLayout` 안에서는 헤더와 페이지 콘텐츠가 함께 스크롤되고, 푸터는 모바일 프레임의 하단에 고정된다. 데스크톱에서는 프레임 바깥 배경과 구분된 중앙 모바일 프리뷰로 표시된다.
+
+### 헤더 설정
+
+기본 화면 헤더 설정은 `src/components/layout/MainLayout.jsx`의 `getHeaderProps(pathname)`에서 관리한다. 새 주요 화면을 추가할 때는 여기에서 제목과 오른쪽 영역을 지정한다.
+
+```jsx
+if (pathname === ROUTES.EXAMPLE) {
+  return {
+    title: '예시',
+    rightContent: <button type="button">저장</button>,
+  }
+}
+```
+
+`Header`는 아래 props를 지원한다. 페이지별로 별도 레이아웃이 필요한 경우에만 직접 import해 사용한다.
+
+| Prop             | 용도                                        |
+| ---------------- | ------------------------------------------- |
+| `variant`        | `main`(기본), `back`, `context` 헤더 형태   |
+| `title`          | 화면 메인 제목. 없으면 NOSPO 로고를 표시    |
+| `subtitle`       | 제목 아래 보조 설명                         |
+| `showBackButton` | `true`면 뒤로가기 아이콘 표시               |
+| `onBack`         | 뒤로가기 버튼 동작                          |
+| `rightContent`   | 날짜, 버튼 등 오른쪽 영역에 넣을 React 노드 |
+
+현재 주요 화면의 기본값은 홈(제목 `홈` + 오늘 날짜), 위키(제목 `위키` + `신규 도서 추가`), 기록(제목 `기록` + `공유하기`), MY(제목 `MY`)다.
+
+### 푸터 설정
+
+`src/components/layout/BottomNavigation.jsx`의 `navigationItems`가 푸터의 항목과 이동 경로를 관리한다. 각 항목의 `to`에는 `ROUTES` 상수를 사용하고, `isActive`로 현재 경로의 강조 상태를 정의한다. 현재 활성 항목에는 진한 아이콘·텍스트와 `aria-current="page"`가 적용된다.
+
+```jsx
+{
+  label: '예시',
+  to: ROUTES.EXAMPLE,
+  icon: exampleIcon,
+  isActive: (path) => path.startsWith(ROUTES.EXAMPLE),
+}
+```
+
+새 탭 화면을 추가할 때는 `src/constants/routes.js`에 경로를 선언하고, `src/routes/router.jsx`에 페이지를 연결한 뒤 푸터 항목을 추가한다. 위키 탭의 목적지는 검색 화면이 아닌 `/wiki` 도서 목록 화면이며, 검색은 `/wiki/search/:searchType`에서 별도로 처리한다.
+
 ## 서버 상태와 전역 상태
 
 ```text
@@ -71,6 +116,7 @@ API 호출 함수 → TanStack Query hook → 화면 컴포넌트
 /reading                    읽기 기록
 /auth/login                 로그인
 /auth/signup                회원가입
+/wiki                       위키 도서 목록
 /wiki/search/:searchType    이름·저자·ISBN 검색
 /wiki/:wikiId               위키 상세
 /wiki/:wikiId/relations     관계도
