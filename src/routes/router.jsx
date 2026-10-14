@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
+import { MainLayout } from '@/components/layout/MainLayout'
 import { RootLayout } from '@/components/layout/RootLayout'
 import { ROUTES } from '@/constants/routes'
 
@@ -39,29 +40,34 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { path: ROUTES.ONBOARDING, element: renderPage(OnboardingPage) },
-      { path: ROUTES.HOME, element: renderPage(HomePage) },
-      { path: ROUTES.READING, element: renderPage(ReadingPage) },
       { path: ROUTES.AUTH_LOGIN, element: renderPage(AuthLoginPage) },
       { path: ROUTES.AUTH_SIGNUP, element: renderPage(AuthSignupPage) },
       { path: ROUTES.AUTH_COMPLETE, element: renderPage(AuthCompletePage) },
-      { path: ROUTES.WIKI, element: renderPage(WikiListPage) },
-      { path: ROUTES.WIKI_SEARCH, element: renderPage(WikiSearchPage) },
-      { path: ROUTES.WIKI_ADD_EMPTY, element: renderPage(WikiAddEmptyPage) },
-      { path: ROUTES.WIKI_ADD_PAGE, element: renderPage(WikiAddPagePage) },
-      { path: ROUTES.WIKI_DETAIL, element: renderPage(WikiDetailPage) },
-      { path: ROUTES.WIKI_RELATION, element: renderPage(WikiRelationshipPage) },
-      { path: ROUTES.WIKI_REGISTER, element: renderPage(WikiRegisterEntryPage) },
-      { path: ROUTES.WIKI_REGISTER_PERSON, element: renderPage(WikiRegisterPersonPage) },
-      { path: ROUTES.WIKI_REGISTER_GROUP, element: renderPage(WikiRegisterGroupPage) },
       {
-        path: ROUTES.WIKI_REGISTER_GROUP_DETAIL,
-        element: renderPage(WikiRegisterGroupDetailPage),
+        element: <MainLayout />,
+        children: [
+          { path: ROUTES.HOME, element: renderPage(HomePage) },
+          { path: ROUTES.READING, element: renderPage(ReadingPage) },
+          { path: ROUTES.WIKI, element: renderPage(WikiListPage) },
+          { path: ROUTES.WIKI_SEARCH, element: renderPage(WikiSearchPage) },
+          { path: ROUTES.WIKI_ADD_EMPTY, element: renderPage(WikiAddEmptyPage) },
+          { path: ROUTES.WIKI_ADD_PAGE, element: renderPage(WikiAddPagePage) },
+          { path: ROUTES.WIKI_DETAIL, element: renderPage(WikiDetailPage) },
+          { path: ROUTES.WIKI_RELATION, element: renderPage(WikiRelationshipPage) },
+          { path: ROUTES.WIKI_REGISTER, element: renderPage(WikiRegisterEntryPage) },
+          { path: ROUTES.WIKI_REGISTER_PERSON, element: renderPage(WikiRegisterPersonPage) },
+          { path: ROUTES.WIKI_REGISTER_GROUP, element: renderPage(WikiRegisterGroupPage) },
+          {
+            path: ROUTES.WIKI_REGISTER_GROUP_DETAIL,
+            element: renderPage(WikiRegisterGroupDetailPage),
+          },
+          { path: ROUTES.WIKI_REVIEW_LIST, element: renderPage(WikiReviewListPage) },
+          { path: ROUTES.WIKI_REVIEW_PROGRESS, element: renderPage(WikiReviewProgressPage) },
+          { path: ROUTES.MY, element: renderPage(MyPage) },
+          { path: ROUTES.MY_PROFILE, element: renderPage(MyProfilePage) },
+          { path: ROUTES.MY_PASSWORD, element: renderPage(MyPasswordPage) },
+        ],
       },
-      { path: ROUTES.WIKI_REVIEW_LIST, element: renderPage(WikiReviewListPage) },
-      { path: ROUTES.WIKI_REVIEW_PROGRESS, element: renderPage(WikiReviewProgressPage) },
-      { path: ROUTES.MY, element: renderPage(MyPage) },
-      { path: ROUTES.MY_PROFILE, element: renderPage(MyProfilePage) },
-      { path: ROUTES.MY_PASSWORD, element: renderPage(MyPasswordPage) },
       { path: '*', element: renderPage(NotFoundPage) },
     ],
   },
