@@ -100,6 +100,9 @@ VITE_API_PRODUCTION_URL=https://api.example.com
 ## 스타일·UI·접근성 규칙
 
 - Tailwind CSS와 기존 디자인 토큰을 우선 사용한다. 전역 색상·폰트·focus 스타일은 `src/index.css`에서 관리한다.
+- 텍스트는 `text-display`, `text-headline`, `text-title`, `text-body`, `text-label`, `text-caption` 등 `@theme`의 역할 기반 위계를 사용하고, `font-bold`·`font-medium`으로 강조도를 정한다.
+- 색상은 축약 팔레트만 기본으로 사용한다. `bg-canvas`, `bg-surface`, `border-border`, `text-text-primary`, `text-text-secondary`, `text-text-muted`와 역할별 `teal-*`, `blue-*`, `amber-*`, `red-*` 토큰을 우선한다.
+- 피그마에 유사한 색상이 여러 개 있어도 새 HEX나 임의 Tailwind 색상을 추가하지 않는다. 의미와 명도에 가장 가까운 축약 팔레트 토큰으로 매핑한다. 브랜드·일러스트·이미지 콘텐츠, 캘린더 상태처럼 표현 자체가 의미인 색만 원본 색상을 유지한다.
 - 모바일 높이는 `h-screen`보다 `min-h-dvh`를 우선하며, 화면 크기에 따라 달라지는 요소는 고정 폭보다 `w-full`, `max-w-*`, `clamp()`를 사용한다.
 - 공통 UI는 데이터나 정책을 소유하지 않는다. 필요한 값은 feature 또는 페이지가 props로 전달한다.
 - 페이지 이동에는 `Link`, 동작 실행에는 `button`을 사용한다. 아이콘 버튼에는 접근 가능한 이름을 제공하고, 현재 링크에는 `aria-current="page"`를 준다.

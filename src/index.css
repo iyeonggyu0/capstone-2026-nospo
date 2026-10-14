@@ -1,17 +1,58 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-black: #080c18;
-  --color-white: #ffffff;
-  --color-primary: #35fff5;
-  --color-secondary: #18365c;
+  --font-sans: 'Noto Sans KR', ui-sans-serif, system-ui, sans-serif;
+
+  /* Figma Typography · 타이포그래피: 반복되는 제품 UI 서식을 계층으로 압축한다. */
+  --text-display: 2rem;
+  --text-display--line-height: 2.5rem;
+  --text-headline: 1.5rem;
+  --text-headline--line-height: 2rem;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.75rem;
+  --text-title-sm: 1rem;
+  --text-title-sm--line-height: 1.5rem;
+  --text-body-lg: 1rem;
+  --text-body-lg--line-height: 1.5rem;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.375rem;
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.25rem;
+  --text-label: 0.75rem;
+  --text-label--line-height: 1.25rem;
+  --text-label-sm: 0.75rem;
+  --text-label-sm--line-height: 1.125rem;
+  --text-caption: 0.6875rem;
+  --text-caption--line-height: 1rem;
+  --text-caption-sm: 0.625rem;
+  --text-caption-sm--line-height: 1rem;
+  --text-caption-xs: 0.5625rem;
+  --text-caption-xs--line-height: 1rem;
+  --text-nav: 0.5rem;
+  --text-nav--line-height: 1.125rem;
+
+  /* Figma Colors · 축약 팔레트: 중립 6개와 역할별 강조색 8개만 기본으로 사용한다. */
+  --color-canvas: #f7f8f7;
+  --color-surface: #ffffff;
+  --color-border: #e2e8e5;
+  --color-text-muted: #898989;
+  --color-text-secondary: #5d6a66;
+  --color-text-primary: #121918;
+  --color-teal-strong: #0f6b62;
+  --color-teal-subtle: #e7f2ef;
+  --color-blue-action: #3572a8;
+  --color-blue-info: #40a1ff;
+  --color-amber-foreground: #8a6418;
+  --color-amber-background: #fff8e7;
+  --color-red-destructive: #a4423c;
+  --color-red-error: #b44848;
 }
 
 @layer base {
   html,
   body,
   #root {
-    @apply min-h-dvh bg-black text-white antialiased;
+    @apply min-h-dvh bg-canvas font-sans text-text-primary antialiased;
   }
 
   body {
@@ -19,7 +60,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--color-teal-strong);
     outline-offset: 3px;
   }
 }
