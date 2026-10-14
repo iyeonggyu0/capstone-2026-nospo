@@ -2,6 +2,7 @@
 export const ROUTES = {
   ONBOARDING: '/',
   HOME: '/home',
+  READING: '/reading',
   AUTH_LOGIN: '/auth/login',
   AUTH_SIGNUP: '/auth/signup',
   AUTH_COMPLETE: '/auth/complete',
@@ -17,4 +18,6 @@ export const ROUTES = {
   WIKI_REVIEW_LIST: '/wiki/reviews',
   WIKI_REVIEW_PROGRESS: '/wiki/reviews/:reviewId',
   MY: '/my',
+  MY_PROFILE: '/my/profile',
+  MY_PASSWORD: '/my/password',
 }

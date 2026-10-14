@@ -8,8 +8,11 @@ const AuthLoginPage = lazy(() => import('@/pages/AuthLoginPage'))
 const AuthSignupPage = lazy(() => import('@/pages/AuthSignupPage'))
 const HomePage = lazy(() => import('@/pages/HomePage'))
 const MyPage = lazy(() => import('@/pages/MyPage'))
+const MyPasswordPage = lazy(() => import('@/pages/MyPasswordPage'))
+const MyProfilePage = lazy(() => import('@/pages/MyProfilePage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'))
+const ReadingPage = lazy(() => import('@/pages/ReadingPage'))
 const WikiAddEmptyPage = lazy(() => import('@/pages/WikiAddEmptyPage'))
 const WikiAddPagePage = lazy(() => import('@/pages/WikiAddPagePage'))
 const WikiDetailPage = lazy(() => import('@/pages/WikiDetailPage'))
@@ -36,6 +39,7 @@ export const router = createBrowserRouter([
     children: [
       { path: ROUTES.ONBOARDING, element: renderPage(OnboardingPage) },
       { path: ROUTES.HOME, element: renderPage(HomePage) },
+      { path: ROUTES.READING, element: renderPage(ReadingPage) },
       { path: ROUTES.AUTH_LOGIN, element: renderPage(AuthLoginPage) },
       { path: ROUTES.AUTH_SIGNUP, element: renderPage(AuthSignupPage) },
       { path: ROUTES.AUTH_COMPLETE, element: renderPage(AuthCompletePage) },
@@ -54,6 +58,8 @@ export const router = createBrowserRouter([
       { path: ROUTES.WIKI_REVIEW_LIST, element: renderPage(WikiReviewListPage) },
       { path: ROUTES.WIKI_REVIEW_PROGRESS, element: renderPage(WikiReviewProgressPage) },
       { path: ROUTES.MY, element: renderPage(MyPage) },
+      { path: ROUTES.MY_PROFILE, element: renderPage(MyProfilePage) },
+      { path: ROUTES.MY_PASSWORD, element: renderPage(MyPasswordPage) },
       { path: '*', element: renderPage(NotFoundPage) },
     ],
   },

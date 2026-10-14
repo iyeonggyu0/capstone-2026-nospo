@@ -6,6 +6,7 @@
 | --------------------------- | ----------------------------- | ----------------------------- |
 | Onboarding                  | `/`                           | `OnboardingPage`              |
 | Home                        | `/home`                       | `HomePage`                    |
+| 읽기 기록                   | `/reading`                    | `ReadingPage`                 |
 | 인증 A · 로그인             | `/auth/login`                 | `AuthLoginPage`               |
 | 인증 B · 회원가입           | `/auth/signup`                | `AuthSignupPage`              |
 | 인증 C · 가입 완료          | `/auth/complete`              | `AuthCompletePage`            |
@@ -21,5 +22,7 @@
 | 신청 위키 검수 A · 목록     | `/wiki/reviews`               | `WikiReviewListPage`          |
 | 신청 위키 검수 B · 진행     | `/wiki/reviews/:reviewId`     | `WikiReviewProgressPage`      |
 | 마이 A · 요약               | `/my`                         | `MyPage`                      |
+| 내 정보 변경                | `/my/profile`                 | `MyProfilePage`               |
+| 비밀번호 변경               | `/my/password`                | `MyPasswordPage`              |
 
 `searchType`에는 `name`, `author`, `isbn`을 사용한다. 실제 API 명세가 확정되면 동적 파라미터와 URL 이름을 함께 조정한다.
