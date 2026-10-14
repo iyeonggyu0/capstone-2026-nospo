@@ -68,6 +68,7 @@ API 호출 함수 → TanStack Query hook → 화면 컴포넌트
 ```text
 /                           온보딩
 /home                       홈
+/reading                    읽기 기록
 /auth/login                 로그인
 /auth/signup                회원가입
 /wiki/search/:searchType    이름·저자·ISBN 검색
@@ -76,6 +77,8 @@ API 호출 함수 → TanStack Query hook → 화면 컴포넌트
 /wiki/register/*            위키 등록
 /wiki/reviews/*             신청 위키 검수
 /my                         마이 요약
+/my/profile                 내 정보 변경
+/my/password                비밀번호 변경
 ```
 
 ## API 환경 설정
