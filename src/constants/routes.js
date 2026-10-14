@@ -6,6 +6,7 @@ export const ROUTES = {
   AUTH_LOGIN: '/auth/login',
   AUTH_SIGNUP: '/auth/signup',
   AUTH_COMPLETE: '/auth/complete',
+  WIKI: '/wiki',
   WIKI_SEARCH: '/wiki/search/:searchType',
   WIKI_ADD_EMPTY: '/wiki/add/empty',
   WIKI_ADD_PAGE: '/wiki/add/page',

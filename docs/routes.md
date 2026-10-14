@@ -10,6 +10,7 @@
 | 인증 A · 로그인             | `/auth/login`                 | `AuthLoginPage`               |
 | 인증 B · 회원가입           | `/auth/signup`                | `AuthSignupPage`              |
 | 인증 C · 가입 완료          | `/auth/complete`              | `AuthCompletePage`            |
+| 위키 도서 목록              | `/wiki`                       | `WikiListPage`                |
 | 이름·저자·ISBN 검색         | `/wiki/search/:searchType`    | `WikiSearchPage`              |
 | 위키 정보 없음              | `/wiki/add/empty`             | `WikiAddEmptyPage`            |
 | 위키 페이지 입력            | `/wiki/add/page`              | `WikiAddPagePage`             |
