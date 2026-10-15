@@ -39,9 +39,12 @@
   --color-text-secondary: #5d6a66;
   --color-text-primary: #121918;
   --color-teal-strong: #0f6b62;
+  --color-teal-main: #31796c;
+  --color-teal-selected: #6ca99f;
   --color-teal-subtle: #e7f2ef;
   --color-blue-action: #3572a8;
   --color-blue-info: #40a1ff;
+  --color-blue-info-light: #e3f0fb;
   --color-amber-foreground: #8a6418;
   --color-amber-background: #fff8e7;
   --color-red-destructive: #a4423c;

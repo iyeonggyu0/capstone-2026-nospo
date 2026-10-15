@@ -7,6 +7,7 @@ import { ROUTES } from '@/constants/routes'
 const AuthCompletePage = lazy(() => import('@/pages/AuthCompletePage'))
 const AuthLoginPage = lazy(() => import('@/pages/AuthLoginPage'))
 const AuthSignupPage = lazy(() => import('@/pages/AuthSignupPage'))
+const CommonUiPreviewPage = lazy(() => import('@/pages/CommonUiPreviewPage'))
 const HomePage = lazy(() => import('@/pages/HomePage'))
 const MyPage = lazy(() => import('@/pages/MyPage'))
 const MyPasswordPage = lazy(() => import('@/pages/MyPasswordPage'))
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { path: ROUTES.ONBOARDING, element: renderPage(OnboardingPage) },
+      { path: ROUTES.COMMON_UI_PREVIEW, element: renderPage(CommonUiPreviewPage) },
       { path: ROUTES.AUTH_LOGIN, element: renderPage(AuthLoginPage) },
       { path: ROUTES.AUTH_SIGNUP, element: renderPage(AuthSignupPage) },
       { path: ROUTES.AUTH_COMPLETE, element: renderPage(AuthCompletePage) },
