@@ -7,7 +7,7 @@ import { ROUTES } from '@/constants/routes'
 const AuthCompletePage = lazy(() => import('@/pages/AuthCompletePage'))
 const AuthLoginPage = lazy(() => import('@/pages/AuthLoginPage'))
 const AuthSignupPage = lazy(() => import('@/pages/AuthSignupPage'))
-const CommonUiPreviewPage = lazy(() => import('@/pages/CommonUiPreviewPage'))
+const CommonUiPreviewPage = lazy(() => import('@/pages/dev/CommonUiPreviewPage'))
 const HomePage = lazy(() => import('@/pages/HomePage'))
 const MyPage = lazy(() => import('@/pages/MyPage'))
 const MyPasswordPage = lazy(() => import('@/pages/MyPasswordPage'))
