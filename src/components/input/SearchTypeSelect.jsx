@@ -118,7 +118,7 @@ export const SearchTypeSelect = ({ options, value, onChange, disabled = false })
     >
       <input type="hidden" name="searchType" value={value} disabled={disabled} />
       <button
-        className="flex h-11 items-center justify-end gap-[6px] rounded-md pl-2.5 text-label-sm font-medium text-[#7d7d7d] disabled:cursor-not-allowed"
+        className="flex h-11 items-center justify-end gap-[6px] rounded-md pl-2.5 text-label-sm font-medium text-text-muted disabled:cursor-not-allowed"
         type="button"
         role="combobox"
         aria-label="검색 기준"

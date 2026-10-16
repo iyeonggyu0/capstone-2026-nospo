@@ -31,7 +31,7 @@ export const AuthField = ({
     ? 'border-red-error'
     : isSuccess
       ? 'border-teal-strong'
-      : 'border-[#d8dedb]'
+      : 'border-border'
   const appearanceClassName =
     appearance === 'plain'
       ? 'bg-transparent'

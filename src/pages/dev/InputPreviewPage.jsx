@@ -15,7 +15,19 @@ const previewDescriptions = {
     '현재 읽은 화 또는 공개 기준을 입력합니다. 확정된 입력 단위와 주변 설명을 함께 유지합니다.',
   terms: '필수 약관 동의와 전문 보기. 관찰된 체크·제목·요약의 연결 구조를 사용합니다.',
 }
-const searchTypeLabels = { name: '이름', author: '저자', isbn: 'ISBN' }
+const bookSearchOptions = [
+  { value: 'name', label: '이름', placeholder: '이름을 입력하세요.' },
+  { value: 'author', label: '저자', placeholder: '저자를 입력하세요.' },
+  {
+    value: 'isbn',
+    label: 'ISBN',
+    placeholder: 'ISBN 13자리를 입력하세요.',
+    inputMode: 'numeric',
+  },
+]
+const searchTypeLabels = Object.fromEntries(
+  bookSearchOptions.map(({ value, label }) => [value, label]),
+)
 const authExamples = [
   { id: 'email', label: '이메일', name: 'email', type: 'email', autoComplete: 'email' },
   {
@@ -47,7 +59,7 @@ const authInitialValues = {
 const InputPreviewPage = () => {
   const [preview, setPreview] = useState('search')
   const [query, setQuery] = useState('데미안')
-  const [searchType, setSearchType] = useState('name')
+  const [searchType, setSearchType] = useState(bookSearchOptions[0].value)
   const [lastSearch, setLastSearch] = useState(null)
   const [searchCount, setSearchCount] = useState(0)
   const [authValues, setAuthValues] = useState(authInitialValues)
@@ -102,6 +114,9 @@ const InputPreviewPage = () => {
         <Search
           id="preview-search"
           name="query"
+          options={bookSearchOptions}
+          searchLabel="도서 검색"
+          aria-label="도서 검색어"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           searchType={searchType}
