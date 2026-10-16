@@ -1,6 +1,7 @@
 /** 애플리케이션 URL을 한 곳에서 관리한다. */
 export const ROUTES = {
   ONBOARDING: '/',
+  COMMON_UI_PREVIEW: '/common-ui',
   HOME: '/home',
   READING: '/reading',
   AUTH_LOGIN: '/auth/login',

@@ -35,13 +35,17 @@
   --color-canvas: #f7f8f7;
   --color-surface: #ffffff;
   --color-border: #e2e8e5;
+  --color-control-neutral: #eef1ef;
+  --color-control-neutral-hover: #e5eae7;
   --color-text-muted: #898989;
   --color-text-secondary: #5d6a66;
   --color-text-primary: #121918;
   --color-teal-strong: #0f6b62;
+  --color-teal-selected: #6ca99f;
   --color-teal-subtle: #e7f2ef;
   --color-blue-action: #3572a8;
   --color-blue-info: #40a1ff;
+  --color-blue-info-light: #e3f0fb;
   --color-amber-foreground: #8a6418;
   --color-amber-background: #fff8e7;
   --color-red-destructive: #a4423c;
