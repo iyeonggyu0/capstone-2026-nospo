@@ -7,6 +7,7 @@ import {
   TextLink,
   WikiCategory,
 } from '@/components/common-ui'
+import { ROUTES } from '@/constants/routes'
 
 const sections = [
   {
@@ -104,23 +105,18 @@ const CommonUiPreviewPage = () => (
     </Section>
 
     <Section {...sections[4]}>
-      <div className="flex w-full flex-col items-start gap-2">
-        <Button className="w-full" size={54} variant="emphasis">
-          회원가입
-        </Button>
-        <Button className="w-full" size={48} variant="emphasis">
-          ✨ AI 토큰 1개로 관계도 만들기
-        </Button>
-        <Button className="w-full" size={44} variant="emphasis">
-          검수 제출
-        </Button>
-        <Button size={38} variant="emphasis">
-          위키 보기
-        </Button>
-        <Button size={38} variant="neutral">
-          바로 이어 읽기
-        </Button>
-        <TextLink to="/wiki/register">위키에 기여하고 토큰 받기</TextLink>
+      <div className="flex w-full flex-col gap-2">
+        <Button text="회원가입" height="54px" color="emphasis" textStyle="body" />
+        <Button
+          text="✨ AI 토큰 1개로 관계도 만들기"
+          height="48px"
+          color="emphasis"
+          textStyle="body"
+        />
+        <Button text="검수 제출" height="48px" color="emphasis" textStyle="body" />
+        <Button text="위키 보기" height="38px" color="emphasis" textStyle="label" />
+        <Button text="바로 이어 읽기" height="38px" color="neutral" textStyle="label" />
+        <TextLink to={ROUTES.WIKI_REGISTER}>위키에 기여하고 토큰 받기</TextLink>
       </div>
     </Section>
 

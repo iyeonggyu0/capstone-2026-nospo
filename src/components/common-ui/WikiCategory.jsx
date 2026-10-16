@@ -6,6 +6,7 @@ const defaultOptions = [
   { value: 'relationship', label: '관계도' },
 ]
 
+/** 위키 콘텐츠 유형을 선택하고 각 유형의 선택 상태를 표시한다. */
 export const WikiCategory = ({
   options = defaultOptions,
   value,

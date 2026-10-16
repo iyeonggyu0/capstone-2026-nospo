@@ -1,31 +1,37 @@
-/** 시안의 주요 버튼 변형을 기존 디자인 토큰에 연결한다. */
-const variantClasses = {
+const colorClasses = {
   emphasis: 'bg-teal-strong text-white hover:bg-teal-strong/90',
   secondary: 'bg-teal-subtle text-teal-strong hover:bg-teal-subtle/80',
   neutral: 'bg-control-neutral text-text-secondary hover:bg-control-neutral-hover',
 }
 
-const sizeClasses = {
-  54: 'h-[54px] px-4 text-body',
-  48: 'h-12 px-4 text-body',
-  44: 'h-11 px-3 text-body',
-  38: 'h-[38px] px-3 text-label',
+const heightClasses = {
+  '54px': 'h-[54px] px-4',
+  '48px': 'h-12 px-4',
+  '46px': 'h-[46px] px-3',
+  '38px': 'h-[38px] px-3',
 }
 
-/** 주요 진행과 보조 행동에 사용하는 재사용 버튼이다. */
+const textStyleClasses = {
+  body: 'text-body',
+  label: 'text-label',
+}
+
+/** 너비 100% 버튼을 표시하고 높이, 색상, 텍스트 스타일을 props로 설정한다. */
 export const Button = ({
-  children,
-  variant = 'emphasis',
-  size = 48,
+  text = '',
+  height = '48px',
+  color = 'emphasis',
+  textStyle = 'body',
   type = 'button',
   leadingIcon,
   className = '',
   ...props
 }) => {
   const classes = [
-    'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-strong',
-    variantClasses[variant] ?? variantClasses.emphasis,
-    sizeClasses[size] ?? sizeClasses[48],
+    'inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-strong',
+    heightClasses[height] ?? heightClasses['48px'],
+    colorClasses[color] ?? colorClasses.emphasis,
+    textStyleClasses[textStyle] ?? textStyleClasses.body,
     className,
   ]
     .filter(Boolean)
@@ -38,7 +44,7 @@ export const Button = ({
           {leadingIcon}
         </span>
       )}
-      {children}
+      {text}
     </button>
   )
 }
