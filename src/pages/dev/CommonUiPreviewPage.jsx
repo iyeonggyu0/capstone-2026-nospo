@@ -105,7 +105,7 @@ const CommonUiPreviewPage = () => (
 
     <Section {...sections[4]}>
       <div className="flex w-full flex-col items-start gap-2">
-        <Button className="w-full" size={54} variant="primary">
+        <Button className="w-full" size={54} variant="emphasis">
           회원가입
         </Button>
         <Button className="w-full" size={48} variant="emphasis">
@@ -114,7 +114,7 @@ const CommonUiPreviewPage = () => (
         <Button className="w-full" size={44} variant="emphasis">
           검수 제출
         </Button>
-        <Button size={38} variant="primary">
+        <Button size={38} variant="emphasis">
           위키 보기
         </Button>
         <Button size={38} variant="neutral">

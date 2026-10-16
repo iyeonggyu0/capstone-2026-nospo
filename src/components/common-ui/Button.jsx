@@ -1,6 +1,5 @@
 /** 시안의 주요 버튼 변형을 기존 디자인 토큰에 연결한다. */
 const variantClasses = {
-  primary: 'bg-teal-main text-white hover:bg-teal-main/90',
   emphasis: 'bg-teal-strong text-white hover:bg-teal-strong/90',
   secondary: 'bg-teal-subtle text-teal-strong hover:bg-teal-subtle/80',
   neutral: 'bg-control-neutral text-text-secondary hover:bg-control-neutral-hover',
@@ -16,7 +15,7 @@ const sizeClasses = {
 /** 주요 진행과 보조 행동에 사용하는 재사용 버튼이다. */
 export const Button = ({
   children,
-  variant = 'primary',
+  variant = 'emphasis',
   size = 48,
   type = 'button',
   leadingIcon,
@@ -25,7 +24,7 @@ export const Button = ({
 }) => {
   const classes = [
     'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-strong',
-    variantClasses[variant] ?? variantClasses.primary,
+    variantClasses[variant] ?? variantClasses.emphasis,
     sizeClasses[size] ?? sizeClasses[48],
     className,
   ]
