@@ -32,7 +32,7 @@ export const RelationshipFilter = ({
         return (
           <button
             aria-pressed={selected}
-            className={`min-h-8 rounded-full px-3 text-label font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-strong ${selected ? 'bg-teal-strong text-white' : 'bg-[#eef1ef] text-text-secondary hover:bg-[#e5eae7]'}`}
+            className={`min-h-8 rounded-full px-3 text-label font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-strong ${selected ? 'bg-teal-strong text-white' : 'bg-control-neutral text-text-secondary hover:bg-control-neutral-hover'}`}
             key={option.value}
             onClick={() => setSelectedValue(option.value)}
             type="button"

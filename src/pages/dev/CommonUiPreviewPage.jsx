@@ -1,9 +1,10 @@
-import { Button } from '@/components/Button'
 import {
   Badge,
+  Button,
   DetailTabs,
   RelationshipFilter,
   ReviewTabs,
+  TextLink,
   WikiCategory,
 } from '@/components/common-ui'
 
@@ -113,15 +114,13 @@ const CommonUiPreviewPage = () => (
         <Button className="w-full" size={44} variant="emphasis">
           검수 제출
         </Button>
-        <Button className="w-74" size={36} variant="primary">
+        <Button size={38} variant="primary">
           위키 보기
         </Button>
-        <Button className="w-68" size={24} variant="neutral">
+        <Button size={38} variant="neutral">
           바로 이어 읽기
         </Button>
-        <Button className="w-full" size={38} variant="text">
-          위키에 기여하고 토큰 받기
-        </Button>
+        <TextLink to="/wiki/register">위키에 기여하고 토큰 받기</TextLink>
       </div>
     </Section>
 
