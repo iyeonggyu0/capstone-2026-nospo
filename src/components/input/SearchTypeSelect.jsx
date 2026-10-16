@@ -3,15 +3,23 @@ import chevronDown from '@/assets/icons/input/chevron-down.svg'
 
 /**
  * 검색 기준의 선택 버튼과 목록을 제공한다.
+ * 항목은 부모가 전달하며, 빈 목록에서는 선택 버튼을 비활성화한다.
  * 목록은 가장 가까운 relative 조상(검색창)의 오른쪽 끝과 맞춰 아래에 표시한다.
  */
-export const SearchTypeSelect = ({ options, value, onChange, disabled = false }) => {
+export const SearchTypeSelect = ({
+  options = [],
+  value,
+  onChange,
+  disabled: disabledProp = false,
+}) => {
+  const disabled = disabledProp || options.length === 0
   const [isOpen, setIsOpen] = useState(false)
   const selectedIndex = Math.max(
     0,
     options.findIndex((option) => option.value === value),
   )
   const [activeIndex, setActiveIndex] = useState(selectedIndex)
+  const activeOptionIndex = Math.min(activeIndex, Math.max(options.length - 1, 0))
   const containerRef = useRef(null)
   const typedCharactersRef = useRef({ text: '', time: 0 })
   const listboxId = `${useId()}-search-types`
@@ -41,13 +49,13 @@ export const SearchTypeSelect = ({ options, value, onChange, disabled = false })
     switch (event.key) {
       case 'ArrowDown':
         event.preventDefault()
-        if (isExpanded) setActiveIndex(Math.min(activeIndex + 1, options.length - 1))
+        if (isExpanded) setActiveIndex(Math.min(activeOptionIndex + 1, options.length - 1))
         else openOptions()
         break
       case 'ArrowUp':
         event.preventDefault()
-        if (isExpanded && event.altKey) selectOption(activeIndex)
-        else if (isExpanded) setActiveIndex(Math.max(activeIndex - 1, 0))
+        if (isExpanded && event.altKey) selectOption(activeOptionIndex)
+        else if (isExpanded) setActiveIndex(Math.max(activeOptionIndex - 1, 0))
         else openOptions(0)
         break
       case 'Home':
@@ -63,7 +71,7 @@ export const SearchTypeSelect = ({ options, value, onChange, disabled = false })
       case 'Enter':
       case ' ':
         event.preventDefault()
-        if (isExpanded) selectOption(activeIndex)
+        if (isExpanded) selectOption(activeOptionIndex)
         else openOptions()
         break
       case 'Escape':
@@ -74,7 +82,7 @@ export const SearchTypeSelect = ({ options, value, onChange, disabled = false })
         setIsOpen(false)
         break
       case 'Tab':
-        if (isExpanded) selectOption(activeIndex)
+        if (isExpanded) selectOption(activeOptionIndex)
         break
       default: {
         if (event.key.length !== 1 || event.altKey || event.ctrlKey || event.metaKey) return
@@ -116,7 +124,12 @@ export const SearchTypeSelect = ({ options, value, onChange, disabled = false })
         if (!event.currentTarget.contains(event.relatedTarget)) setIsOpen(false)
       }}
     >
-      <input type="hidden" name="searchType" value={value} disabled={disabled} />
+      <input
+        type="hidden"
+        name="searchType"
+        value={value ?? options[selectedIndex]?.value ?? ''}
+        disabled={disabled}
+      />
       <button
         className="flex h-11 items-center justify-end gap-[6px] rounded-md pl-2.5 text-label-sm font-medium text-text-muted disabled:cursor-not-allowed"
         type="button"
@@ -125,7 +138,7 @@ export const SearchTypeSelect = ({ options, value, onChange, disabled = false })
         aria-haspopup="listbox"
         aria-expanded={isExpanded}
         aria-controls={listboxId}
-        aria-activedescendant={isExpanded ? `${listboxId}-${activeIndex}` : undefined}
+        aria-activedescendant={isExpanded ? `${listboxId}-${activeOptionIndex}` : undefined}
         disabled={disabled}
         onClick={() => {
           if (isExpanded) setIsOpen(false)
@@ -133,7 +146,7 @@ export const SearchTypeSelect = ({ options, value, onChange, disabled = false })
         }}
         onKeyDown={handleKeyDown}
       >
-        <span>{options[selectedIndex].label}</span>
+        <span>{options[selectedIndex]?.label ?? '검색 기준'}</span>
         <img src={chevronDown} alt="" aria-hidden="true" width={13} height={13} />
       </button>
       <ul
@@ -147,9 +160,9 @@ export const SearchTypeSelect = ({ options, value, onChange, disabled = false })
           <li
             key={option.value}
             id={`${listboxId}-${index}`}
-            className={`flex min-h-11 cursor-pointer items-center rounded-lg px-3 text-left text-label-sm font-medium hover:bg-canvas ${index === (isExpanded ? activeIndex : selectedIndex) ? 'bg-teal-subtle text-teal-strong' : 'text-text-primary'}`}
+            className={`flex min-h-11 cursor-pointer items-center rounded-lg px-3 text-left text-label-sm font-medium hover:bg-canvas ${index === (isExpanded ? activeOptionIndex : selectedIndex) ? 'bg-teal-subtle text-teal-strong' : 'text-text-primary'}`}
             role="option"
-            aria-selected={index === (isExpanded ? activeIndex : selectedIndex)}
+            aria-selected={index === (isExpanded ? activeOptionIndex : selectedIndex)}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => selectOption(index)}
           >
