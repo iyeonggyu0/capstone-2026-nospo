@@ -7,6 +7,9 @@ import { ROUTES } from '@/constants/routes'
 const AuthCompletePage = lazy(() => import('@/pages/AuthCompletePage'))
 const AuthLoginPage = lazy(() => import('@/pages/AuthLoginPage'))
 const AuthSignupPage = lazy(() => import('@/pages/AuthSignupPage'))
+const CommonUiPreviewPage = import.meta.env.DEV
+  ? lazy(() => import('@/pages/dev/CommonUiPreviewPage'))
+  : null
 const HomePage = lazy(() => import('@/pages/HomePage'))
 const InputPreviewPage = import.meta.env.DEV
   ? lazy(() => import('@/pages/dev/InputPreviewPage'))
@@ -43,6 +46,9 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { path: ROUTES.ONBOARDING, element: renderPage(OnboardingPage) },
+      ...(CommonUiPreviewPage
+        ? [{ path: ROUTES.COMMON_UI_PREVIEW, element: renderPage(CommonUiPreviewPage) }]
+        : []),
       { path: ROUTES.AUTH_LOGIN, element: renderPage(AuthLoginPage) },
       { path: ROUTES.AUTH_SIGNUP, element: renderPage(AuthSignupPage) },
       { path: ROUTES.AUTH_COMPLETE, element: renderPage(AuthCompletePage) },
