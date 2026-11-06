@@ -9,6 +9,31 @@ afterEach(() => {
 })
 
 describe('인증 API', () => {
+  it('실제 환경에서 약관 조회와 이메일 링크 인증을 API로 전달한다', async () => {
+    vi.stubEnv('DEV', false)
+    const { apiClient } = await import('@/lib/api-client')
+    apiClient.request.mockResolvedValue({ data: { data: {} } })
+    const { authApi } = await import('./auth')
+    await authApi.terms()
+    await authApi.term('version-id')
+    await authApi.confirmEmail('link-token')
+    expect(apiClient.request).toHaveBeenNthCalledWith(1, {
+      method: 'get',
+      url: '/v1/terms',
+      data: undefined,
+    })
+    expect(apiClient.request).toHaveBeenNthCalledWith(2, {
+      method: 'get',
+      url: '/v1/terms/version-id',
+      data: undefined,
+    })
+    expect(apiClient.request).toHaveBeenNthCalledWith(3, {
+      method: 'post',
+      url: '/v1/auth/signup/email-verifications/confirm',
+      data: { token: 'link-token' },
+    })
+  })
+
   it('명세에 맞는 가입 요청과 중복 방지 키를 전달한다', async () => {
     vi.stubEnv('DEV', false)
     const { apiClient } = await import('@/lib/api-client')

@@ -18,30 +18,31 @@ const AuthSignupPage = () => {
   const [notice, setNotice] = useState('')
   const [email, setEmail] = useState('')
   const [proof, setProof] = useState(null)
-  const terms = [
-    {
-      termVersionId: '00000000-0000-4000-8000-000000000001',
-      title: '서비스 이용약관',
-      type: 'SERVICE',
-      required: true,
-    },
-    {
-      termVersionId: '00000000-0000-4000-8000-000000000002',
-      title: '개인정보 처리방침',
-      type: 'PRIVACY',
-      required: true,
-    },
-  ]
+  const [terms, setTerms] = useState([])
   const [consents, setConsents] = useState({})
   const [detail, setDetail] = useState(null)
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
-  const [code, setCode] = useState('')
   const [resendAt, setResendAt] = useState(0)
   const [remaining, setRemaining] = useState(0)
   const [errors, setErrors] = useState({})
   const attempt = useRef(null)
   const mismatch = confirmation.length > 0 && password !== confirmation
+
+  useEffect(() => {
+    let active = true
+    authApi
+      .terms()
+      .then((data) => {
+        if (active) setTerms(data.items)
+      })
+      .catch((error) => {
+        if (active) setNotice(authError(error))
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     if (!resendAt) return
@@ -53,7 +54,7 @@ const AuthSignupPage = () => {
     return () => window.clearInterval(timer)
   }, [resendAt])
 
-  const confirmEmail = async (token, fromInput = false) => {
+  const confirmEmail = async (token) => {
     setBusy(true)
     try {
       const result = await authApi.confirmEmail(token)
@@ -61,8 +62,7 @@ const AuthSignupPage = () => {
       setProof(result)
       setNotice('')
     } catch (error) {
-      if (fromInput) setErrors((previous) => ({ ...previous, verificationCode: authError(error) }))
-      else setNotice(authError(error))
+      setNotice(authError(error))
     } finally {
       setBusy(false)
     }
@@ -85,7 +85,6 @@ const AuthSignupPage = () => {
       const result = await authApi.sendVerification(email.trim().toLowerCase())
       setProof(null)
       setSent(true)
-      setCode('')
       setRemaining(60)
       setResendAt(Math.max(Date.now() + 60000, Date.parse(result.resendAvailableAt) || 0))
       setNotice('')
@@ -124,10 +123,6 @@ const AuthSignupPage = () => {
     }
     if (!terms.length || terms.some((term) => term.required && !consents[term.termVersionId])) {
       setNotice('필수 약관을 확인하고 동의해 주세요.')
-      return
-    }
-    if (!isAuthMock) {
-      setNotice('약관 동의 처리를 준비 중입니다.')
       return
     }
     const form = new FormData(event.currentTarget)
@@ -217,7 +212,6 @@ const AuthSignupPage = () => {
                 setEmail(event.target.value)
                 setProof(null)
                 setSent(false)
-                setCode('')
               }}
               action={
                 !proof &&
@@ -234,7 +228,7 @@ const AuthSignupPage = () => {
                     onClick={sendVerification}
                     disabled={busy}
                     aria-label="인증 메일 보내기"
-                    className="flex cursor-pointer items-center justify-center pb-0.5 text-teal-strong disabled:opacity-50"
+                    className="-mr-2 flex size-9 cursor-pointer items-center justify-center pb-0.5 text-teal-strong disabled:opacity-50"
                   >
                     <FontAwesomeIcon icon={faPaperPlane} className="text-xs" />
                   </button>
@@ -242,35 +236,20 @@ const AuthSignupPage = () => {
               }
               required
             />
-            {(sent || proof) && (
+            {sent && !proof && (
               <div className="-mt-2">
-                <InputField
-                  label="인증번호"
-                  labelHidden
-                  name="verificationCode"
-                  error={errors.verificationCode}
-                  value={code}
-                  readOnly={Boolean(proof)}
-                  onChange={(event) => setCode(event.target.value)}
-                  placeholder={proof ? '인증 완료' : '인증번호 입력'}
-                  inputMode="numeric"
-                  action={
-                    isAuthMock && !proof ? (
-                      <button
-                        type="button"
-                        disabled={busy || !code.trim()}
-                        onClick={() => confirmEmail(code.trim(), true)}
-                        className="cursor-pointer text-label-sm font-medium text-teal-strong disabled:opacity-50"
-                      >
-                        확인
-                      </button>
-                    ) : null
-                  }
-                />
-                {!isAuthMock && !proof && (
-                  <p className="mt-1 text-right text-caption-sm text-text-secondary">
-                    메일에 포함된 인증 링크를 눌러주세요.
-                  </p>
+                <p className="text-right text-caption-sm text-text-secondary">
+                  메일에 포함된 인증 링크를 눌러주세요.
+                </p>
+                {isAuthMock && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => confirmEmail('dev-test')}
+                    className="mt-1 w-full text-right text-label-sm font-medium text-teal-strong disabled:opacity-50"
+                  >
+                    테스트 인증 링크 확인
+                  </button>
                 )}
               </div>
             )}
@@ -327,15 +306,27 @@ const AuthSignupPage = () => {
                 </label>
                 <button
                   type="button"
-                  className="text-label-sm font-medium text-teal-strong"
+                  className="min-h-9 text-label-sm font-medium text-teal-strong"
                   aria-label={`${term.title} 보기`}
-                  onClick={() => setDetail(term.type)}
+                  onClick={async () => {
+                    try {
+                      const version = await authApi.term(term.termVersionId)
+                      setDetail({ title: version.title, content: version.content })
+                    } catch (error) {
+                      setNotice(authError(error))
+                    }
+                  }}
                 >
                   보기
                 </button>
               </div>
             ))}
           </fieldset>
+          {terms.length === 0 && (
+            <p className="text-caption text-red-error">
+              약관을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.
+            </p>
+          )}
           {notice && (
             <p role="status" className="text-caption text-red-error">
               {notice}
@@ -359,7 +350,7 @@ const AuthSignupPage = () => {
           </p>
         </form>
       </div>
-      {detail && <TermsView type={detail} onClose={() => setDetail(null)} />}
+      {detail && <TermsView {...detail} onClose={() => setDetail(null)} />}
     </main>
   )
 }
