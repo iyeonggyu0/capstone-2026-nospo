@@ -4,11 +4,32 @@ vi.mock('@/lib/api-client', () => ({ apiClient: { request: vi.fn() } }))
 
 afterEach(() => {
   vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
   vi.resetModules()
   vi.clearAllMocks()
 })
 
 describe('인증 API', () => {
+  it('인증 요청 실패 시 토큰을 유지하고 재시도 성공 후에만 제거한다', async () => {
+    vi.stubEnv('DEV', false)
+    const replaceState = vi.fn()
+    vi.stubGlobal('window', {
+      location: {
+        href: 'https://example.com/auth/signup/verify?token=link-token&from=mail#signup',
+      },
+      history: { state: null, replaceState },
+    })
+    const { apiClient } = await import('@/lib/api-client')
+    apiClient.request
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce({ data: { data: { emailProof: 'proof' } } })
+    const { confirmSignupEmail } = await import('./auth')
+    await expect(confirmSignupEmail('link-token')).rejects.toThrow('network')
+    expect(replaceState).not.toHaveBeenCalled()
+    await expect(confirmSignupEmail('link-token')).resolves.toEqual({ emailProof: 'proof' })
+    expect(replaceState).toHaveBeenCalledWith(null, '', '/auth/signup/verify?from=mail#signup')
+  })
+
   it('실제 환경에서 약관 조회와 이메일 링크 인증을 API로 전달한다', async () => {
     vi.stubEnv('DEV', false)
     const { apiClient } = await import('@/lib/api-client')

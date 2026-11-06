@@ -23,6 +23,17 @@ export const authApi = {
 
 export const isAuthMock = mockEnabled
 
+/** 링크 인증에 성공한 뒤에만 주소에서 사용한 토큰을 제거한다. */
+export const confirmSignupEmail = async (token) => {
+  const result = await authApi.confirmEmail(token)
+  const url = new URL(window.location.href)
+  if (url.searchParams.get('token') === token) {
+    url.searchParams.delete('token')
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+  }
+  return result
+}
+
 export const authError = (error) => {
   const code = error.response?.data?.error?.code
   const messages = {

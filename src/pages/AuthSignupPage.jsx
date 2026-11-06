@@ -7,7 +7,7 @@ import { InputField } from '@/components/InputField'
 import { validateFields } from '@/components/validateFields'
 import { TermsView } from '@/components/TermsView'
 import { ROUTES } from '@/constants/routes'
-import { authApi, authError, isAuthMock, useAuth } from '@/features/auth'
+import { authApi, authError, confirmSignupEmail, isAuthMock, useAuth } from '@/features/auth'
 
 /** 이메일 인증과 약관 동의를 거쳐 일반 회원으로 가입한다. */
 const AuthSignupPage = () => {
@@ -27,6 +27,8 @@ const AuthSignupPage = () => {
   const [remaining, setRemaining] = useState(0)
   const [errors, setErrors] = useState({})
   const attempt = useRef(null)
+  const callbackToken = useRef(null)
+  const [retryVerification, setRetryVerification] = useState(false)
   const mismatch = confirmation.length > 0 && password !== confirmation
 
   useEffect(() => {
@@ -57,12 +59,15 @@ const AuthSignupPage = () => {
   const confirmEmail = async (token) => {
     setBusy(true)
     try {
-      const result = await authApi.confirmEmail(token)
+      const result = await confirmSignupEmail(token)
       setEmail(result.email)
       setProof(result)
       setNotice('')
+      setRetryVerification(false)
+      callbackToken.current = null
     } catch (error) {
       setNotice(authError(error))
+      if (callbackToken.current === token) setRetryVerification(true)
     } finally {
       setBusy(false)
     }
@@ -70,8 +75,8 @@ const AuthSignupPage = () => {
 
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get('token')
-    if (!token) return
-    window.history.replaceState(window.history.state, '', window.location.pathname)
+    if (!token || callbackToken.current === token) return
+    callbackToken.current = token
     Promise.resolve().then(() => confirmEmail(token))
   }, [])
 
@@ -331,6 +336,16 @@ const AuthSignupPage = () => {
             <p role="status" className="text-caption text-red-error">
               {notice}
             </p>
+          )}
+          {retryVerification && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => confirmEmail(callbackToken.current)}
+              className="text-label-sm font-medium text-teal-strong disabled:opacity-50"
+            >
+              이메일 인증 다시 시도
+            </button>
           )}
           <button
             type="submit"
