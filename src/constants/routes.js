@@ -5,6 +5,7 @@ export const ROUTES = {
   READING: '/reading',
   AUTH_LOGIN: '/auth/login',
   AUTH_SIGNUP: '/auth/signup',
+  AUTH_SIGNUP_VERIFY: '/auth/signup/verify',
   AUTH_COMPLETE: '/auth/complete',
   WIKI: '/wiki',
   WIKI_SEARCH: '/wiki/search/:searchType',

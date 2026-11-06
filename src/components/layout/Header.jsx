@@ -33,7 +33,7 @@ export const Header = ({
     >
       {showBack && (
         <button
-          className="flex size-5 shrink-0 items-center justify-center"
+          className="-m-2 flex size-9 shrink-0 cursor-pointer items-center justify-center p-2"
           type="button"
           aria-label="뒤로 가기"
           onClick={onBack}

@@ -9,6 +9,8 @@
 
 ## 기술 스택
 
+`npm run dev`로 실행하면 인증 API가 테스트 데이터를 사용한다. 가입 정보는 브라우저 메모리에만 남고 새로고침하면 사라진다. 프로덕션 빌드는 실제 인증 API를 사용하며, 실제 이메일 인증 링크는 프론트의 `/auth/signup/verify?token=...`으로 연결되어야 한다.
+
 - React, JavaScript (`.js`, `.jsx`), Vite
 - Tailwind CSS, React Router
 - TanStack Query, Zustand, Axios
