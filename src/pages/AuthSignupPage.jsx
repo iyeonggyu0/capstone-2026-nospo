@@ -160,6 +160,10 @@ const AuthSignupPage = () => {
         state: { nickname: result.member.nickname, signedUp: true },
       })
     } catch (error) {
+      if (['PROOF_ALREADY_USED', 'PROOF_EXPIRED'].includes(error.response?.data?.error?.code)) {
+        setProof(null)
+        setSent(false)
+      }
       setNotice(authError(error))
     } finally {
       setBusy(false)
