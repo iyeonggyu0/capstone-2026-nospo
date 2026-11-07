@@ -51,7 +51,7 @@ export const MainLayout = () => {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-y-auto bg-surface">
         <Header {...getHeaderProps(pathname)} />
         <Outlet />
       </main>

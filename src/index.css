@@ -49,6 +49,25 @@
 }
 
 @layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 999px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   html,
   body,
   #root {
@@ -57,6 +76,15 @@
 
   body {
     margin: 0;
+  }
+
+  button:not(:disabled),
+  a[href],
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
   }
 
   :focus-visible {

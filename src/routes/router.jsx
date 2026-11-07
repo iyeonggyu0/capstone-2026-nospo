@@ -45,6 +45,7 @@ export const router = createBrowserRouter([
       { path: ROUTES.ONBOARDING, element: renderPage(OnboardingPage) },
       { path: ROUTES.AUTH_LOGIN, element: renderPage(AuthLoginPage) },
       { path: ROUTES.AUTH_SIGNUP, element: renderPage(AuthSignupPage) },
+      { path: ROUTES.AUTH_SIGNUP_VERIFY, element: renderPage(AuthSignupPage) },
       { path: ROUTES.AUTH_COMPLETE, element: renderPage(AuthCompletePage) },
       ...(import.meta.env.DEV
         ? [{ path: ROUTES.DEV_INPUT_PREVIEW, element: renderPage(InputPreviewPage) }]
