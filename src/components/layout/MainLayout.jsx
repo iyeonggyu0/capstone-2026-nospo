@@ -52,7 +52,7 @@ export const MainLayout = () => {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <main className="min-h-0 flex-1 overflow-y-auto">
-        <Header {...getHeaderProps(pathname)} />
+        {pathname !== ROUTES.WIKI_REGISTER_PERSON && <Header {...getHeaderProps(pathname)} />}
         <Outlet />
       </main>
       <BottomNavigation />
