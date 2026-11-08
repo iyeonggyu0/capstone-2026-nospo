@@ -1,4 +1,13 @@
-/** 단체 위키의 상세 정보를 등록하는 화면 자리다. */
-const WikiRegisterGroupDetailPage = () => null
+import { useSearchParams } from 'react-router-dom'
+import { GroupDetailContainer } from '@/features/wiki'
+
+/** 주소의 단체 식별자(groupId)와 모드(mode)를 읽어 단체 상세 화면에 전달한다. */
+const WikiRegisterGroupDetailPage = () => {
+  const [searchParams] = useSearchParams()
+
+  return (
+    <GroupDetailContainer groupId={searchParams.get('groupId')} mode={searchParams.get('mode')} />
+  )
+}
 
 export default WikiRegisterGroupDetailPage
