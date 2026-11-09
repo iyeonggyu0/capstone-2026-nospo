@@ -17,13 +17,8 @@ const book = {
   episodeUnit: '화',
 }
 
-/** 모의 단체 목록이다. */
-const groups = [
-  { id: 'g1', name: '그리핀도르', scale: '중', memberCount: 12 },
-  { id: 'g2', name: '래번클로', scale: '중', memberCount: 9 },
-  { id: 'g3', name: '후플푸프', scale: '소', memberCount: 7 },
-  { id: 'g4', name: '슬리데린', scale: '대', memberCount: 11 },
-]
+/** 모의 단체 목록이다. 단체 이름은 모두 예시이며, 목록은 샘플 하나만 둔다. */
+const groups = [{ id: 'g1', name: '그리핀도르', scale: '중', memberCount: 12 }]
 
 /** 단체 식별자별 모의 상세 정보(구성원·관계·주요 행적)다. */
 const details = {
@@ -33,7 +28,7 @@ const details = {
       { id: 'p2', name: '이도윤', unlockEpisode: 3 },
       { id: 'p3', name: '박지우', unlockEpisode: 7 },
     ],
-    relations: { friendly: ['g2'], hostile: ['g4'], neutral: ['g3'] },
+    relations: {},
     milestones: [
       { id: 'm1', content: '폭풍을 피해 새로운 항로를 제안', unlockEpisode: 12 },
       { id: 'm2', content: '선원들을 설득해 항해를 이어감', unlockEpisode: 10 },

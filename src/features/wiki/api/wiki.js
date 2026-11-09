@@ -14,8 +14,14 @@ const request = async (method, path, data, config = {}) => {
   return response.data.data
 }
 
-/** 제출할 단체 초안에서 서버가 필요로 하는 이름과 등장 회차만 남긴다. */
-const toGroupPayload = ({ name, unlockEpisode }) => ({ name, unlockEpisode })
+/** 제출할 단체 초안에서 서버가 필요로 하는 값만 남긴다. 상세를 편집했다면 구성원·관계·주요 행적도 함께 보낸다. */
+const toGroupPayload = ({ name, unlockEpisode, members, relations, milestones }) => ({
+  name,
+  unlockEpisode,
+  ...(members && { members }),
+  ...(relations && { relations }),
+  ...(milestones && { milestones }),
+})
 
 /** 단체 목록, 상세, 검수 제출 요청 모음이다. 제출한 제안은 관리자 검토 대기(PENDING_REVIEW) 상태가 된다. */
 export const groupApi = {

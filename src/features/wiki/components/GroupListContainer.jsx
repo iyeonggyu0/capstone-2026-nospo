@@ -23,6 +23,7 @@ export const GroupListContainer = ({ editionId, mode, onCategoryChange }) => {
   return (
     <GroupListScreen
       book={book}
+      editionId={editionId}
       episodeUnit={book?.episodeUnit}
       groups={query.data?.items}
       isSubmitting={submit.isPending}

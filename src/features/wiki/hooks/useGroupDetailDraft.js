@@ -14,7 +14,9 @@ const isSameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b)
  *   relations: object,
  *   milestones: Array,
  *   hasChanges: boolean,
+ *   addMember: (name: string) => void,
  *   removeMember: (id: string) => void,
+ *   addRelation: (name: string) => void,
  *   removeRelation: (id: string) => void,
  *   addMilestone: (input: { content: string, unlockEpisode: number }) => void,
  *   updateMilestone: (id: string, input: { content: string, unlockEpisode: number }) => void,
@@ -34,9 +36,41 @@ export const useGroupDetailDraft = (group) => {
   const [milestones, setMilestones] = useState(initial.milestones)
   const lastDraftNumber = useRef(0)
 
+  /** 이름으로 구성원을 목록 끝에 추가한다. 이미 같은 이름이 있으면 추가하지 않는다. */
+  const addMember = (name) => {
+    const trimmed = name.trim()
+    const isDuplicate = members.some(
+      (member) => member.name.trim().toLowerCase() === trimmed.toLowerCase(),
+    )
+    if (!trimmed || isDuplicate) return
+
+    lastDraftNumber.current += 1
+    setMembers((previous) => [
+      ...previous,
+      { id: `draft-member-${lastDraftNumber.current}`, name: trimmed, isDraft: true },
+    ])
+  }
+
   /** 구성원 하나를 목록에서 제거한다. */
   const removeMember = (id) => {
     setMembers((previous) => previous.filter((member) => member.id !== id))
+  }
+
+  /** 이름으로 관계 단체를 `우호` 구간 끝에 추가한다. 어느 구간이든 이미 같은 이름이 있으면 추가하지 않는다. */
+  const addRelation = (name) => {
+    const trimmed = name.trim()
+    const isDuplicate = Object.values(relations)
+      .flat()
+      .some((related) => related.name.trim().toLowerCase() === trimmed.toLowerCase())
+    if (!trimmed || isDuplicate) return
+
+    lastDraftNumber.current += 1
+    const related = {
+      id: `draft-relation-${lastDraftNumber.current}`,
+      name: trimmed,
+      isDraft: true,
+    }
+    setRelations((previous) => ({ ...previous, friendly: [...(previous.friendly ?? []), related] }))
   }
 
   /** 우호·대립·중립 어느 구간에 있든 해당 단체를 관계에서 제거한다. */
@@ -105,7 +139,9 @@ export const useGroupDetailDraft = (group) => {
     relations,
     milestones,
     hasChanges,
+    addMember,
     removeMember,
+    addRelation,
     removeRelation,
     addMilestone,
     updateMilestone,
