@@ -4,8 +4,7 @@ import { Logo } from '@/components/Logo'
 import { Button } from '@/components/common-ui'
 import { WikiCharacterImagePicker } from '@/features/wiki'
 import chevronLeft from '@/assets/icons/header/chevron-left.svg'
-import genderFemaleIcon from '@/assets/icons/gender/gender-female.svg'
-import genderMaleIcon from '@/assets/icons/gender/gender-male.svg'
+import bookCoverPreview from '@/assets/images/wiki-book-cover-preview.png'
 
 const previewPeople = [
   {
@@ -15,9 +14,46 @@ const previewPeople = [
     age: 26,
     gender: '남성',
     role: '주인공',
-    personality: '',
-    firstRevealAt: 26,
+    personality: '침착하고 신중함',
+    firstRevealAt: 2,
     imageUrl: '',
+    entries: [
+      { title: '폭풍을 피해 새로운 항로를 제안', revealAt: 12 },
+      { title: '폭풍을 피해 새로운 항로를 제안', revealAt: 10 },
+      { title: '폭풍을 피해 새로운 항로를 제안', revealAt: 7 },
+      { title: '폭풍을 피해 새로운 항로를 제안', revealAt: 4 },
+      { title: '폭풍을 피해 새로운 항로를 제안', revealAt: 4 },
+      { title: '폭풍을 피해 새로운 항로를 제안', revealAt: 4 },
+      { title: '폭풍을 피해 새로운 항로를 제안', revealAt: 4 },
+    ],
+    abilities: [
+      {
+        title: '항로 읽기',
+        content: '바람과 조류의 변화를 읽어 안전한 길을 찾습니다.',
+        revealAt: 4,
+      },
+      {
+        title: '항로 읽기',
+        content: '바람과 조류의 변화를 읽어 안전한 길을 찾습니다.',
+        revealAt: 4,
+      },
+      {
+        title: '항로 읽기',
+        content: '바람과 조류의 변화를 읽어 안전한 길을 찾습니다.',
+        revealAt: 4,
+      },
+    ],
+    otherEntries: [
+      { title: '폭풍을 피해 새로운 항로를 제안', revealAt: 12 },
+      { title: '폭풍을 피해 새로운 항로를 제안', revealAt: 12 },
+      { title: '폭풍을 피해 새로운 항로를 제안', revealAt: 12 },
+      { title: '폭풍을 피해 새로운 항로를 제안', revealAt: 12 },
+    ],
+    relations: {
+      우호: ['서하준', '서하준', '서하준'],
+      대립: ['서하준', '서하준', '서하준'],
+      중립: ['서하준', '서하준', '서하준'],
+    },
   },
   {
     id: 'preview-2',
@@ -26,8 +62,8 @@ const previewPeople = [
     age: 26,
     gender: '남성',
     role: '주연',
-    personality: '',
-    firstRevealAt: 26,
+    personality: '침착하고 신중함',
+    firstRevealAt: 2,
     imageUrl: '',
   },
   {
@@ -37,8 +73,8 @@ const previewPeople = [
     age: 26,
     gender: '남성',
     role: '조연',
-    personality: '',
-    firstRevealAt: 26,
+    personality: '침착하고 신중함',
+    firstRevealAt: 2,
     imageUrl: '',
   },
 ]
@@ -51,6 +87,20 @@ const tabs = [
   { id: 'RELATION', label: '관계' },
   { id: 'OTHER', label: '기타' },
 ]
+
+const getDraftStorageKey = (bookId) => `nospo:wiki-person-draft:${bookId ?? 'preview'}`
+
+const readStoredPeople = (bookId) => {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const savedDraft = window.sessionStorage.getItem(getDraftStorageKey(bookId))
+    const people = savedDraft ? JSON.parse(savedDraft) : null
+    return Array.isArray(people) ? people : null
+  } catch {
+    return null
+  }
+}
 
 const emptyPerson = (revealAt = 1) => ({
   name: '',
@@ -79,18 +129,24 @@ const GenderIcon = ({ gender, selected = false, size = 'size-4' }) => {
   if (gender !== '남성' && gender !== '여성') return null
 
   const isMale = gender === '남성'
-  const icon = isMale ? genderMaleIcon : genderFemaleIcon
-  const colorStyle =
-    isMale && selected
-      ? {
-          filter:
-            'brightness(0) saturate(100%) invert(39%) sepia(24%) saturate(1280%) hue-rotate(166deg) brightness(94%) contrast(90%)',
-        }
-      : !isMale && !selected
-        ? { filter: 'grayscale(1) opacity(.45)' }
-        : undefined
+  const color = isMale ? (selected ? '#3572A8' : '#878787') : selected ? '#D35B5D' : '#878787'
 
-  return <img alt="" aria-hidden="true" className={size} src={icon} style={colorStyle} />
+  return (
+    <svg aria-hidden="true" className={size} fill="none" viewBox="0 0 16 16">
+      {isMale ? (
+        <path
+          d="M14.4643 1H9.96429C9.90536 1 9.85714 1.04821 9.85714 1.10714V2.10714C9.85714 2.16607 9.90536 2.21429 9.96429 2.21429H12.8286L9.26964 5.77321C8.37678 5.08571 7.2875 4.71429 6.14286 4.71429C4.76964 4.71429 3.47679 5.25 2.50714 6.22143C1.5375 7.19286 1 8.48393 1 9.85714C1 11.2304 1.53571 12.5232 2.50714 13.4929C3.47679 14.4643 4.76964 15 6.14286 15C7.51607 15 8.80893 14.4643 9.77857 13.4929C10.75 12.5232 11.2857 11.2304 11.2857 9.85714C11.2857 8.7125 10.9143 7.62679 10.2286 6.73393L13.7857 3.17679V6.03571C13.7857 6.09464 13.8339 6.14286 13.8929 6.14286H14.8929C14.9518 6.14286 15 6.09464 15 6.03571V1.53571C15 1.24107 14.7589 1 14.4643 1ZM6.14286 13.6429C4.05536 13.6429 2.35714 11.9446 2.35714 9.85714C2.35714 7.76964 4.05536 6.07143 6.14286 6.07143C8.23036 6.07143 9.92857 7.76964 9.92857 9.85714C9.92857 11.9446 8.23036 13.6429 6.14286 13.6429Z"
+          fill={color}
+        />
+      ) : (
+        <path
+          d="M8 0.99994C6.93913 0.99994 5.92172 1.42137 5.17157 2.17151C4.42143 2.92166 4 3.93907 4 4.99994C4 6.06081 4.42143 7.07822 5.17157 7.82837C5.92172 8.57851 6.93913 8.99994 8 8.99994C9.06087 8.99994 10.0783 8.57851 10.8284 7.82837C11.5786 7.07822 12 6.06081 12 4.99994C12 3.93907 11.5786 2.92166 10.8284 2.17151C10.0783 1.42137 9.06087 0.99994 8 0.99994ZM3 4.99994C3.00001 4.03235 3.28077 3.08556 3.80823 2.27438C4.33568 1.4632 5.08717 0.822483 5.97156 0.429945C6.85594 0.0374067 7.83523 -0.0900927 8.79064 0.0629099C9.74605 0.215912 10.6365 0.642844 11.3541 1.29192C12.0717 1.94101 12.5855 2.78435 12.8333 3.71968C13.0811 4.655 13.0521 5.64213 12.75 6.56133C12.4478 7.48053 11.8855 8.29232 11.1311 8.89824C10.3767 9.50416 9.46274 9.87818 8.5 9.97494V11.9999H10.5C10.6326 11.9999 10.7598 12.0526 10.8536 12.1464C10.9473 12.2402 11 12.3673 11 12.4999C11 12.6325 10.9473 12.7597 10.8536 12.8535C10.7598 12.9473 10.6326 12.9999 10.5 12.9999H8.5V15.4999C8.5 15.6325 8.44732 15.7597 8.35355 15.8535C8.25979 15.9211 8.13261 15.9999 8 15.9999C7.86739 15.9999 7.74021 15.9211 7.64645 15.8535C7.55268 15.7597 7.5 15.6325 7.5 15.4999V12.9999H5.5C5.36739 12.9999 5.24021 12.9473 5.14645 12.8535C5.05268 12.7597 5 12.6325 5 12.4999C5 12.3673 5.05268 12.1464 5.14645 12.1464C5.14645 12.1464 5.36739 12.1464 5.5 12.1464H7.5V9.97494C6.26668 9.85099 5.12337 9.27335 4.29188 8.35408C3.46038 7.43482 2.99998 6.23947 3 4.99994Z"
+          fill={color}
+          fillRule="evenodd"
+        />
+      )}
+    </svg>
+  )
 }
 
 /** 인물 위키 등록·수정 초안의 목록과 기본 정보 편집 화면이다. */
@@ -100,10 +156,15 @@ const WikiRegisterPersonPage = () => {
   const params = useMemo(() => new URLSearchParams(location.search), [location.search])
   const book = location.state?.book ?? {}
   const bookId = location.state?.bookId ?? params.get('bookId')
-  const position = location.state?.position ?? Number(params.get('position') || 1)
+  const position =
+    location.state?.position ?? Number(params.get('position') || (import.meta.env.DEV ? 32 : 1))
   const positionValue = getPositionValue(position)
   const positionLabel = getPositionLabel(position)
-  const [people, setPeople] = useState(import.meta.env.DEV && !bookId ? previewPeople : [])
+  const [people, setPeople] = useState(() => {
+    const savedPeople = readStoredPeople(bookId)
+    if (savedPeople) return savedPeople
+    return import.meta.env.DEV && !bookId ? previewPeople : []
+  })
   const [modal, setModal] = useState(null)
   const [form, setForm] = useState(emptyPerson(positionValue))
   const [selectedTab, setSelectedTab] = useState('EVENT')
@@ -114,7 +175,7 @@ const WikiRegisterPersonPage = () => {
 
   const activePerson = people.find((person) => person.id === activePersonId)
   const openCreate = () => {
-    setForm(emptyPerson(positionValue))
+    setForm(emptyPerson(import.meta.env.DEV && !bookId ? 2 : positionValue))
     setModal('create')
   }
   const openEdit = (person) => {
@@ -155,25 +216,39 @@ const WikiRegisterPersonPage = () => {
   const discard = () => {
     navigate(-1)
   }
+  const saveDraftAndReturn = () => {
+    try {
+      window.sessionStorage.setItem(getDraftStorageKey(bookId), JSON.stringify(people))
+      navigate(-1)
+    } catch {
+      setNotice('이 브라우저에서는 임시 저장을 사용할 수 없어요.')
+    }
+  }
 
   return (
-    <div className="relative mx-auto flex min-h-full w-full max-w-[430px] flex-col bg-surface pb-[144px]">
-      <header className="flex h-11 shrink-0 items-center justify-between px-5">
+    <div className="relative mx-auto flex min-h-full w-full max-w-[390px] flex-col bg-surface px-0 pt-5">
+      <header className="flex h-[22px] shrink-0 items-center justify-between px-5">
         {activePerson ? (
           <button
             aria-label="인물 목록으로 돌아가기"
-            className="flex min-h-11 items-center gap-2 text-teal-strong"
+            className="flex h-[22px] items-center gap-2 text-teal-strong"
             onClick={() => setActivePersonId(null)}
             type="button"
           >
             <img alt="" aria-hidden="true" className="size-5" src={chevronLeft} />
-            <Logo className="gap-1" imageClassName="size-6" />
+            <Logo
+              className="gap-1 [&>span]:text-label [&>span]:leading-[22px]"
+              imageClassName="size-[22px]"
+            />
           </button>
         ) : (
-          <Logo className="gap-1" imageClassName="size-7" />
+          <Logo
+            className="gap-1 [&>span]:text-label [&>span]:leading-[22px]"
+            imageClassName="size-[22px]"
+          />
         )}
         <button
-          className="min-h-11 text-label font-medium text-text-primary"
+          className="h-[22px] text-label font-medium text-text-primary"
           onClick={() => setNotice(`현재 진도 ${positionValue}화 기준으로 작성 중이에요.`)}
           type="button"
         >
@@ -182,21 +257,20 @@ const WikiRegisterPersonPage = () => {
       </header>
 
       {!activePerson && (
-        <section className="px-5 pt-1" aria-label="도서와 진도">
-          <div className="flex items-center gap-3 rounded-2xl bg-canvas p-3">
+        <section className="px-5 pt-3" aria-label="도서와 진도">
+          <div className="flex h-[118px] items-center gap-4 rounded-2xl bg-canvas p-3">
             {book.coverUrl ? (
               <img
                 alt=""
-                className="size-[68px] shrink-0 rounded-xl object-cover"
+                className="h-[94px] w-[72px] shrink-0 rounded-lg object-cover"
                 src={book.coverUrl}
               />
             ) : (
-              <div
-                className="flex size-[68px] shrink-0 items-center justify-center rounded-xl bg-teal-subtle text-title font-bold text-teal-strong"
-                aria-hidden="true"
-              >
-                책
-              </div>
+              <img
+                alt=""
+                className="h-[94px] w-[72px] shrink-0 rounded-lg object-cover"
+                src={bookCoverPreview}
+              />
             )}
             <div className="min-w-0">
               <p className="truncate text-body-lg font-bold">
@@ -214,18 +288,7 @@ const WikiRegisterPersonPage = () => {
         </section>
       )}
 
-      {import.meta.env.DEV && !activePerson && (
-        <div
-          className="mx-5 mt-3 rounded-lg bg-blue-info-light px-3 py-2 text-caption text-blue-action"
-          role="status"
-        >
-          {bookId
-            ? '화면 미리보기 · 인물·초안 API와 인증은 아직 연결되지 않았어요.'
-            : '미리보기 데이터 · 도서 화면에서 bookId와 진도를 전달하면 실제 문맥으로 연결됩니다.'}
-        </div>
-      )}
-
-      <main className="flex-1 px-5 pt-7">
+      <main className={`flex-1 px-5 ${activePerson ? 'pt-6' : 'pt-7'}`}>
         <div className="flex items-center justify-between">
           <h1 className="text-title font-bold">{activePerson ? '인물 정보' : '위키 내용 편집'}</h1>
           {activePerson && (
@@ -251,7 +314,7 @@ const WikiRegisterPersonPage = () => {
 
         {!activePerson ? (
           <>
-            <div className="mt-4 grid grid-cols-2 gap-2" role="tablist" aria-label="위키 유형">
+            <div className="mt-[10px] grid grid-cols-2 gap-2" role="tablist" aria-label="위키 유형">
               <button
                 aria-selected="true"
                 className="h-8 rounded-lg bg-teal-selected text-label font-medium text-white"
@@ -270,13 +333,13 @@ const WikiRegisterPersonPage = () => {
                 단체
               </button>
             </div>
-            <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-background px-3 py-2.5 text-caption text-amber-foreground">
+            <div className="mt-3 flex h-[37px] w-[calc(100%+8px)] items-center gap-2 rounded-lg bg-amber-background px-3 text-caption text-amber-foreground">
               <span aria-hidden="true" className="text-body">
                 ✧
               </span>
               <span>검수 승인 시 AI 토큰 최대 10개를 보상으로 드려요.</span>
             </div>
-            <ul className="mt-3 divide-y divide-border/50">
+            <ul className="mt-[14px] divide-y divide-border/50">
               {people.map((person) => (
                 <li key={person.id} className="flex min-h-[72px] items-center gap-3">
                   <button
@@ -287,12 +350,12 @@ const WikiRegisterPersonPage = () => {
                     {person.imageUrl ? (
                       <img
                         alt=""
-                        className="size-12 rounded-full object-cover"
+                        className="size-10 rounded-full object-cover"
                         src={person.imageUrl}
                       />
                     ) : (
                       <span
-                        className="size-12 shrink-0 rounded-full bg-teal-strong"
+                        className="size-10 shrink-0 rounded-full bg-teal-strong"
                         aria-hidden="true"
                       />
                     )}
@@ -312,9 +375,9 @@ const WikiRegisterPersonPage = () => {
                     </span>
                   </button>
                   <button
-                    aria-label={`${person.name} 정보 수정`}
+                    aria-label={`${person.name} 정보 보기`}
                     className="flex size-11 shrink-0 items-center justify-center text-text-secondary"
-                    onClick={() => openEdit(person)}
+                    onClick={() => setActivePersonId(person.id)}
                     type="button"
                   >
                     ›
@@ -323,7 +386,7 @@ const WikiRegisterPersonPage = () => {
               ))}
             </ul>
             <button
-              className="mt-3 flex min-h-12 w-full items-center justify-center gap-1 text-label text-text-secondary"
+              className="mt-3 flex min-h-16 w-full items-center justify-center gap-1 text-label text-text-secondary"
               onClick={openCreate}
               type="button"
             >
@@ -334,9 +397,9 @@ const WikiRegisterPersonPage = () => {
             </button>
           </>
         ) : (
-          <section className="mt-4" aria-label="인물 상세 편집">
+          <section className="mt-3" aria-label="인물 상세 편집">
             <div className="rounded-xl border border-border p-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-start gap-3">
                 <WikiCharacterImagePicker
                   imageUrl={activePerson.imageUrl}
                   onFileSelected={(file) =>
@@ -349,15 +412,31 @@ const WikiRegisterPersonPage = () => {
                     )
                   }
                 />
-                <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-title font-bold">{activePerson.name}</h2>
-                </div>
-                <span
-                  aria-label={activePerson.gender || '성별 미정'}
-                  title={activePerson.gender || '성별 미정'}
+                <button
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => openEdit(activePerson)}
+                  type="button"
                 >
-                  <GenderIcon gender={activePerson.gender} selected size="size-5" />
-                </span>
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-title font-bold">{activePerson.name}</span>
+                    <span
+                      aria-label={activePerson.gender || '성별 미정'}
+                      className="flex shrink-0 items-center gap-2"
+                      title={activePerson.gender || '성별 미정'}
+                    >
+                      <GenderIcon
+                        gender="남성"
+                        selected={activePerson.gender === '남성'}
+                        size="size-4"
+                      />
+                      <GenderIcon
+                        gender="여성"
+                        selected={activePerson.gender === '여성'}
+                        size="size-4"
+                      />
+                    </span>
+                  </span>
+                </button>
               </div>
               <dl className="mt-2 grid grid-cols-[56px_1fr] gap-y-1 text-body">
                 <dt className="text-label text-text-secondary">비중</dt>
@@ -371,7 +450,7 @@ const WikiRegisterPersonPage = () => {
               </dl>
             </div>
             <div
-              className="mt-4 grid grid-cols-4 border-b border-border"
+              className="mt-3 grid grid-cols-4 border-b border-border"
               role="tablist"
               aria-label="인물 정보"
             >
@@ -379,7 +458,7 @@ const WikiRegisterPersonPage = () => {
                 <button
                   key={tab.id}
                   aria-selected={selectedTab === tab.id}
-                  className={`min-h-12 border-b-2 px-1 text-label ${selectedTab === tab.id ? 'border-teal-strong font-bold text-teal-strong' : 'border-transparent text-text-secondary'}`}
+                  className={`h-10 border-b-2 px-1 text-label ${selectedTab === tab.id ? 'border-teal-strong font-bold text-teal-strong' : 'border-transparent text-text-secondary'}`}
                   onClick={() => setSelectedTab(tab.id)}
                   role="tab"
                   type="button"
@@ -388,7 +467,7 @@ const WikiRegisterPersonPage = () => {
                 </button>
               ))}
             </div>
-            <div className="mt-5 flex items-center justify-between">
+            <div className="mt-6 flex items-center justify-between px-3">
               <h3 className="text-body-lg font-bold">
                 {tabs.find((tab) => tab.id === selectedTab)?.label}
               </h3>
@@ -397,13 +476,91 @@ const WikiRegisterPersonPage = () => {
               )}
             </div>
             {selectedTab === 'RELATION' ? (
-              <div className="mt-4 rounded-lg bg-control-neutral p-4 text-label text-text-secondary">
-                관계는 인물과 단체를 추가한 뒤 초안 안에서 연결할 수 있어요.
+              <div className="mt-3 px-3">
+                <div className="flex h-[37px] items-center rounded-md bg-control-neutral px-3 text-label text-text-secondary">
+                  인물 검색
+                  <button
+                    className="ml-auto text-text-muted"
+                    onClick={() => setNotice('관계 추가 API 연결이 필요해요.')}
+                    type="button"
+                  >
+                    추가 ＋
+                  </button>
+                </div>
+                {Object.entries(activePerson.relations ?? {}).map(([relation, names], index) => (
+                  <section className="mt-3" key={relation}>
+                    <h4 className="mb-1 text-body font-bold">{relation}</h4>
+                    <ul
+                      className={`border-l pl-3 ${index === 0 ? 'border-teal-strong' : index === 1 ? 'border-red-destructive' : 'border-text-secondary'}`}
+                    >
+                      {names.map((name, itemIndex) => (
+                        <li
+                          className="flex min-h-[60px] items-center gap-3"
+                          key={`${relation}-${itemIndex}`}
+                        >
+                          <span
+                            className="size-10 shrink-0 rounded-full bg-teal-strong"
+                            aria-hidden="true"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-body">{name}</span>
+                            <span className="text-caption text-text-secondary">00화</span>
+                          </span>
+                          <button
+                            className="text-label text-red-destructive"
+                            onClick={() => setNotice('관계 삭제 API 연결이 필요해요.')}
+                            type="button"
+                          >
+                            삭제
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
               </div>
             ) : (
-              <div className="mt-4 rounded-lg bg-canvas p-4 text-label text-text-secondary">
-                아직 등록한 내용이 없어요.
-              </div>
+              <ul className="mt-3 px-3">
+                {(selectedTab === 'EVENT'
+                  ? activePerson.entries
+                  : selectedTab === 'ABILITY'
+                    ? activePerson.abilities
+                    : activePerson.otherEntries
+                )?.map((entry, index) => (
+                  <li
+                    className={`flex items-center gap-2 border-b border-border/50 ${selectedTab === 'ABILITY' ? 'min-h-[68px]' : 'min-h-[48px]'}`}
+                    key={`${entry.title}-${index}`}
+                  >
+                    {selectedTab === 'ABILITY' ? (
+                      <>
+                        <span className="text-label text-teal-strong">Ⅱ 항로 읽기</span>
+                        <span className="min-w-0 flex-1 text-caption text-text-secondary">
+                          {entry.content}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="min-w-0 flex-1 truncate text-body-sm">{entry.title}</span>
+                    )}
+                    <span className="shrink-0 text-caption-xs text-text-secondary">
+                      {entry.revealAt}화
+                    </span>
+                    <button
+                      className="text-label text-teal-strong"
+                      onClick={() => setNotice('항목 수정 API 연결이 필요해요.')}
+                      type="button"
+                    >
+                      편집
+                    </button>
+                    <button
+                      className="text-label text-red-destructive"
+                      onClick={() => setNotice('항목 삭제 API 연결이 필요해요.')}
+                      type="button"
+                    >
+                      삭제
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
             <button
               className="mt-3 min-h-11 w-full text-label text-text-secondary"
@@ -418,7 +575,7 @@ const WikiRegisterPersonPage = () => {
         )}
       </main>
 
-      <footer className="fixed inset-x-0 bottom-[74px] z-10 mx-auto w-full max-w-[390px] border-t border-border bg-surface px-5 pt-3 pb-2">
+      <footer className="sticky bottom-0 z-10 mt-auto w-full bg-surface px-5 pt-[10px] pb-[14px]">
         <Button
           className="rounded-lg font-bold"
           onClick={() => setNotice('검수 제출 API와 인증 연결이 필요해요.')}
@@ -427,19 +584,12 @@ const WikiRegisterPersonPage = () => {
           color="emphasis"
           textStyle="body"
         />
-        <div className="flex min-h-8 items-center justify-center gap-3 text-caption text-text-secondary">
+        <div className="flex h-[22px] items-center justify-center gap-3 text-caption text-text-secondary">
           <button onClick={discard} type="button">
             저장 안 함
           </button>
           <span aria-hidden="true">|</span>
-          <button
-            onClick={() =>
-              setNotice(
-                '임시 저장 API와 인증 연결이 필요해요. 현재 미리보기 변경 내용은 저장되지 않아요.',
-              )
-            }
-            type="button"
-          >
+          <button onClick={saveDraftAndReturn} type="button">
             임시 저장 후 돌아가기
           </button>
         </div>
@@ -466,16 +616,16 @@ const WikiRegisterPersonPage = () => {
 
       {modal && (
         <div
-          className="fixed inset-0 z-30 flex items-center justify-center bg-text-primary/35 px-5 py-8"
+          className="fixed inset-0 z-30 flex items-center justify-center bg-text-primary/35 px-5 py-8 backdrop-blur-[1.5px]"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeModal()
           }}
         >
           <form
-            className="max-h-full w-full max-w-[390px] overflow-y-auto rounded-2xl bg-surface p-5 shadow-xl"
+            className={`flex max-h-[calc(100dvh-32px)] w-full max-w-[318px] flex-col overflow-y-auto rounded-xl bg-surface p-6 shadow-xl ${modal === 'edit' ? 'min-h-[548px]' : 'min-h-[536px]'}`}
             onSubmit={savePerson}
           >
-            <div className="mb-4 flex items-center justify-between">
+            <div className="flex h-11 items-center justify-between">
               <h2 className="text-title font-bold">
                 {modal === 'create' ? '기본 정보 등록' : '기본 정보 추가 · 수정'}
               </h2>
@@ -488,11 +638,11 @@ const WikiRegisterPersonPage = () => {
                 ×
               </button>
             </div>
-            <label className="mb-3 block text-caption text-text-secondary">
+            <label className="mb-5 block text-caption text-text-secondary">
               이름
               <input
                 autoFocus
-                className="mt-1.5 min-h-11 w-full rounded-md bg-control-neutral px-3 text-body text-text-primary placeholder:text-text-muted"
+                className="h-[37px] w-full rounded-md bg-control-neutral px-3 text-body text-text-primary placeholder:text-text-muted"
                 style={{ outline: 'none' }}
                 maxLength={100}
                 onChange={(event) => updateField('name', event.target.value)}
@@ -503,9 +653,9 @@ const WikiRegisterPersonPage = () => {
             </label>
             <label className="mb-3 block text-caption text-text-secondary">
               소속
-              <div className="mt-1.5 flex gap-2">
+              <div className="mt-0.5 flex">
                 <input
-                  className="min-h-11 min-w-0 flex-1 rounded-md bg-control-neutral px-3 text-body text-text-primary placeholder:text-text-muted"
+                  className="h-[37px] min-w-0 flex-1 rounded-md bg-control-neutral px-3 text-body text-text-primary placeholder:text-text-muted"
                   style={{ outline: 'none' }}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={(event) => {
@@ -517,22 +667,15 @@ const WikiRegisterPersonPage = () => {
                   placeholder="단체 검색"
                   value={query}
                 />
-                <button
-                  className="min-h-11 rounded-md bg-teal-subtle px-3 text-label text-teal-strong"
-                  onClick={addOrganization}
-                  type="button"
-                >
-                  추가
-                </button>
               </div>
               {(organizations.length > 0 || form.affiliation) && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="mt-1 flex flex-wrap gap-1">
                   {[
                     ...new Set([...organizations, ...(form.affiliation ? [form.affiliation] : [])]),
                   ].map((name) => (
                     <button
                       key={name}
-                      className={`rounded-full px-2.5 py-1 text-caption ${form.affiliation === name ? 'bg-teal-selected text-white' : 'bg-control-neutral text-text-secondary'}`}
+                      className={`h-5 min-w-9 rounded-full px-2 text-caption-xs ${form.affiliation === name ? 'bg-teal-selected text-white' : 'bg-control-neutral text-text-secondary'}`}
                       onClick={() =>
                         updateField('affiliation', form.affiliation === name ? '' : name)
                       }
@@ -544,10 +687,10 @@ const WikiRegisterPersonPage = () => {
                 </div>
               )}
             </label>
-            <label className="mb-4 block text-caption text-text-secondary">
+            <label className="mb-3 block text-caption text-text-secondary">
               성향
-              <textarea
-                className="mt-1.5 min-h-20 w-full resize-y rounded-md bg-control-neutral px-3 py-2.5 text-body text-text-primary placeholder:text-text-muted"
+              <input
+                className="h-[37px] w-full rounded-md bg-control-neutral px-3 text-body text-text-primary placeholder:text-text-muted"
                 style={{ outline: 'none' }}
                 maxLength={1000}
                 onChange={(event) => updateField('personality', event.target.value)}
@@ -561,7 +704,7 @@ const WikiRegisterPersonPage = () => {
                 {roles.map((role) => (
                   <button
                     aria-pressed={form.role === role}
-                    className={`min-h-11 rounded-md px-1 text-caption ${form.role === role ? 'font-bold text-teal-strong' : 'text-text-muted'}`}
+                    className={`h-8 rounded-md px-1 text-caption ${form.role === role ? 'font-bold text-teal-strong' : 'text-text-muted'}`}
                     key={role}
                     onClick={() => updateField('role', role)}
                     type="button"
@@ -577,23 +720,21 @@ const WikiRegisterPersonPage = () => {
                 {genders.map((gender) => (
                   <button
                     aria-pressed={form.gender === gender}
-                    className={`min-h-11 rounded-md text-label ${form.gender === gender ? 'font-bold text-teal-strong' : 'text-text-muted'}`}
+                    className={`h-8 rounded-md text-label ${form.gender === gender ? 'font-bold text-teal-strong' : 'text-text-muted'}`}
                     key={gender}
                     onClick={() => updateField('gender', gender)}
                     type="button"
                   >
-                    <span className="inline-flex items-center justify-center gap-1">
-                      <GenderIcon gender={gender} selected={form.gender === gender} />
-                      {gender}
-                    </span>
+                    {gender}
                   </button>
                 ))}
               </div>
             </fieldset>
-            <label className="mb-5 flex min-h-11 items-center justify-center gap-2 text-label text-text-secondary">
+            <label className="mb-5 flex h-7 items-center justify-center gap-2 text-label text-text-secondary">
               기준 회차
               <input
-                className="h-10 w-16 rounded-md bg-control-neutral text-center text-body text-text-primary"
+                className="h-7 w-14 rounded-md bg-control-neutral text-center text-body text-text-primary"
+                style={{ outline: 'none' }}
                 min="1"
                 onChange={(event) =>
                   updateField('firstRevealAt', event.target.value.replace(/\D/g, ''))
@@ -606,7 +747,7 @@ const WikiRegisterPersonPage = () => {
               화
             </label>
             <button
-              className="min-h-11 w-full rounded-lg bg-teal-strong text-body font-bold text-white"
+              className="mt-auto h-[38px] w-full rounded-lg bg-teal-strong text-body font-bold text-white"
               type="submit"
             >
               {modal === 'create' ? '인물 추가' : '수정'}
