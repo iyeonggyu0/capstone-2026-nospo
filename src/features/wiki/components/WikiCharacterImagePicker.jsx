@@ -5,11 +5,7 @@ const MAX_IMAGE_DIMENSION = 4096
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 /** 등록·수정 저장 전에 이미지를 선택해 미리보기하고 검증한다. */
-export const WikiCharacterImagePicker = ({
-  imageUrl = '',
-  onFileSelected,
-  disabled = false,
-}) => {
+export const WikiCharacterImagePicker = ({ imageUrl = '', onFileSelected, disabled = false }) => {
   const inputRef = useRef(null)
   const localPreviewRef = useRef(null)
   const [previewUrl, setPreviewUrl] = useState(imageUrl)

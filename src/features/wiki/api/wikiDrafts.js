@@ -9,13 +9,7 @@ const getDraftResult = (response) => ({
 })
 
 /** 위키 작성 또는 수정 초안을 생성하고 동시 수정 기준 ETag를 반환한다. */
-export const createWikiDraft = async ({
-  bookId,
-  mode,
-  position,
-  wikiId,
-  baseWikiVersion,
-}) => {
+export const createWikiDraft = async ({ bookId, mode, position, wikiId, baseWikiVersion }) => {
   const response = await apiClient.post('/v1/wiki/drafts', {
     bookId,
     mode,
@@ -101,12 +95,7 @@ export const uploadWikiDraftAsset = async ({ draftId, file, etag }) => {
 }
 
 /** 인물과 최초 프로필을 함께 추가하고 초안 ETag를 갱신한다. */
-export const createWikiCharacter = async ({
-  draftId,
-  firstRevealAt,
-  profile,
-  etag,
-}) => {
+export const createWikiCharacter = async ({ draftId, firstRevealAt, profile, etag }) => {
   const response = await apiClient.post(
     `/v1/wiki/drafts/${draftId}/characters`,
     { firstRevealAt, profile },
@@ -145,13 +134,7 @@ export const createWikiCharacterEntry = async ({ draftId, characterId, entry, et
 }
 
 /** 인물 세부 항목 전체를 수정하고 초안 ETag를 갱신한다. */
-export const updateWikiCharacterEntry = async ({
-  draftId,
-  characterId,
-  entryId,
-  entry,
-  etag,
-}) => {
+export const updateWikiCharacterEntry = async ({ draftId, characterId, entryId, entry, etag }) => {
   const response = await apiClient.put(
     `/v1/wiki/drafts/${draftId}/characters/${characterId}/entries/${entryId}`,
     entry,
