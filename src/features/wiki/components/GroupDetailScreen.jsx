@@ -106,14 +106,14 @@ const GroupDetailContent = ({
             editable={isEdit}
             episodeUnit={episodeUnit}
             members={draft.members}
-            onAdd={onAddMember}
+            onAdd={onAddMember ?? draft.addMember}
             onRemove={draft.removeMember}
           />
         )}
         {tab === 'relations' && (
           <GroupRelationList
             editable={isEdit}
-            onAdd={onAddRelation}
+            onAdd={onAddRelation ?? draft.addRelation}
             onRemove={draft.removeRelation}
             relations={draft.relations}
           />
@@ -156,8 +156,8 @@ const GroupDetailContent = ({
  * @param {string} [props.episodeUnit='화'] 진도 단위
  * @param {'ready' | 'loading' | 'error'} [props.status='ready'] 화면 상태
  * @param {() => void} [props.onRetry] 오류 상태에서 `다시 시도`를 눌렀을 때 실행
- * @param {(query: string) => void} [props.onAddMember] 구성원 검색 줄에서 `추가`를 눌렀을 때 실행. 없으면 비활성
- * @param {(query: string) => void} [props.onAddRelation] 관계 단체 검색 줄에서 `추가`를 눌렀을 때 실행. 없으면 비활성
+ * @param {(query: string) => void} [props.onAddMember] 구성원 검색 줄에서 `추가`를 눌렀을 때 실행. 없으면 입력한 이름으로 구성원을 추가한다
+ * @param {(query: string) => void} [props.onAddRelation] 관계 단체 검색 줄에서 `추가`를 눌렀을 때 실행. 없으면 입력한 이름으로 `우호` 관계를 추가한다
  * @param {(draft: { members: Array, relations: object, milestones: Array }) => void} [props.onSubmit] `검수 제출`을 눌렀을 때 편집한 내용과 함께 실행. 없으면 비활성
  * @param {boolean} [props.isSubmitting=false] 제출 요청 중인지 여부
  * @param {string} [props.submitError] 제출 실패 안내 문구

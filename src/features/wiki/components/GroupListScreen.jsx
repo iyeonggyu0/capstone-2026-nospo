@@ -59,6 +59,7 @@ const GroupListEmpty = () => (
  * @param {object} props 컴포넌트 props
  * @param {{ title: string, progressLabel: string, statusLabel: string, coverImageSrc?: string, currentEpisode?: number }} [props.book] 현재 도서 정보. `currentEpisode`는 등장 회차의 최댓값이다.
  * @param {Array<{ id: string, name: string, memberCount: number, imageUrl?: string }>} [props.groups=[]] 단체 목록
+ * @param {string | null} [props.editionId] 추가·삭제 초안을 판본별로 구분하는 도서 판본 식별자
  * @param {number} [props.personCount] `인물` 칩 옆에 표시할 인물 수
  * @param {'view' | 'edit'} [props.mode='edit'] `edit`는 처음부터 삭제 버튼과 검수 제출 영역을 보여준다(Figma 편집 상태). `view`는 이를 숨기고, 단체를 추가·삭제하는 순간 편집 상태가 된다.
  * @param {string} [props.episodeUnit='화'] 진도 단위
@@ -73,6 +74,7 @@ const GroupListEmpty = () => (
 export const GroupListScreen = ({
   book,
   groups = [],
+  editionId,
   personCount,
   mode = 'edit',
   episodeUnit = '화',
@@ -84,7 +86,7 @@ export const GroupListScreen = ({
   submitError,
   onSaveDraft,
 }) => {
-  const draft = useGroupDraft(groups)
+  const draft = useGroupDraft(groups, editionId)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const isReady = status === 'ready'
   const isEditing = mode === 'edit' || draft.hasChanges

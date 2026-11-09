@@ -1,11 +1,12 @@
-import { useRef, useState } from 'react'
+import { EMPTY_GROUP_DRAFT, getGroupDraftKey, useGroupDraftStore } from '../store'
 import { composeGroups } from '../utils'
 
 /**
  * 서버에서 받은 단체 목록 위에 사용자의 변경(새 단체 추가, 기존 단체 삭제)을 초안으로 얹어서 관리한다.
- * 초안은 화면 안에서만 유지하며, 검수 제출 전에는 서버 데이터에 반영하지 않는다.
+ * 초안은 판본별로 스토어(메모리)에 보관해 다른 화면에 갔다 와도 유지하며, 검수 제출 전에는 서버 데이터에 반영하지 않는다.
  *
  * @param {Array<{ id: string, name: string }>} [groups=[]] 서버에서 받은 단체 목록
+ * @param {string | null} [editionId] 초안을 구분하는 도서 판본 식별자
  * @returns {{
  *   groups: Array,
  *   addedGroups: Array,
@@ -16,46 +17,27 @@ import { composeGroups } from '../utils'
  *   reset: () => void,
  * }} 화면에 보여줄 목록과 초안 조작 함수
  */
-export const useGroupDraft = (groups = []) => {
-  const [addedGroups, setAddedGroups] = useState([])
-  const [removedGroupIds, setRemovedGroupIds] = useState([])
-  const lastDraftNumber = useRef(0)
-
-  /** 이름과 등장 회차로 초안 단체를 목록 끝에 추가한다. */
-  const addGroup = ({ name, unlockEpisode }) => {
-    lastDraftNumber.current += 1
-    const draftGroup = {
-      id: `draft-${lastDraftNumber.current}`,
-      name: name.trim(),
-      unlockEpisode: Number(unlockEpisode),
-      memberCount: 0,
-      isDraft: true,
-    }
-
-    setAddedGroups((previous) => [...previous, draftGroup])
-  }
-
-  /** 추가했던 초안은 바로 지우고, 서버에 있는 단체는 삭제 목록에 올려 화면에서 숨긴다. */
-  const removeGroup = (id) => {
-    setAddedGroups((previous) => previous.filter((group) => group.id !== id))
-    if (groups.some((group) => group.id === id)) {
-      setRemovedGroupIds((previous) => (previous.includes(id) ? previous : [...previous, id]))
-    }
-  }
-
-  /** 추가·삭제한 내용을 모두 버리고 처음 상태로 돌린다. */
-  const reset = () => {
-    setAddedGroups([])
-    setRemovedGroupIds([])
-  }
+export const useGroupDraft = (groups = [], editionId) => {
+  const key = getGroupDraftKey(editionId)
+  const { addedGroups, removedGroupIds } = useGroupDraftStore(
+    (state) => state.drafts[key] ?? EMPTY_GROUP_DRAFT,
+  )
+  const addToStore = useGroupDraftStore((state) => state.addGroup)
+  const removeFromStore = useGroupDraftStore((state) => state.removeGroup)
+  const resetStore = useGroupDraftStore((state) => state.resetDraft)
 
   return {
     groups: composeGroups(groups, addedGroups, removedGroupIds),
     addedGroups,
     removedGroupIds,
     hasChanges: addedGroups.length > 0 || removedGroupIds.length > 0,
-    addGroup,
-    removeGroup,
-    reset,
+    addGroup: (input) => addToStore(key, input),
+    removeGroup: (id) =>
+      removeFromStore(
+        key,
+        id,
+        groups.some((group) => group.id === id),
+      ),
+    reset: () => resetStore(key),
   }
 }

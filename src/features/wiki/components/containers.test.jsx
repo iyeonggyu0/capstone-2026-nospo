@@ -1,11 +1,23 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { StaticRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { groupApi } from '../api/wiki'
 import { groupQueryKeys } from '../hooks/useGroupQueries'
+import { useGroupDraftStore } from '../store'
 import { GroupDetailContainer } from './GroupDetailContainer'
 import { GroupListContainer } from './GroupListContainer'
+
+// 서버 렌더링은 Zustand 스토어의 '처음 상태'만 읽으므로, 이 파일에서는 스토어를 현재 상태를 읽는 대역으로 바꿔 끼운다.
+vi.mock('../store', async (importOriginal) => {
+  const actual = await importOriginal()
+  const useGroupDraftStore = Object.assign(
+    (selector) => selector(actual.useGroupDraftStore.getState()),
+    actual.useGroupDraftStore,
+  )
+
+  return { ...actual, useGroupDraftStore }
+})
 
 /**
  * 필요한 조회를 미리 해 둔 캐시로 Container를 서버 렌더링해서 HTML 글자로 돌려준다.
@@ -49,6 +61,24 @@ describe('GroupListContainer', () => {
     expect(html).toContain('그리핀도르')
     expect(html).toContain('groupId=g1&amp;mode=edit')
     expect(html).toContain('신규 단체 추가')
+  })
+})
+
+describe('GroupDetailContainer (새로 추가한 단체)', () => {
+  const initialState = useGroupDraftStore.getState()
+
+  afterEach(() => {
+    useGroupDraftStore.setState(initialState, true)
+  })
+
+  it('서버에 없는 초안 단체도 찾을 수 없다고 하지 않고 스토어의 초안으로 보여준다', async () => {
+    useGroupDraftStore.getState().addGroup('default', { name: '신규 단체', unlockEpisode: 3 })
+
+    const html = await renderContainer(<GroupDetailContainer groupId="draft-1" mode="edit" />)
+
+    expect(html).toContain('신규 단체')
+    expect(html).not.toContain('단체를 찾을 수 없어요.')
+    expect(html).not.toContain('불러오는 중')
   })
 })
 

@@ -7,11 +7,12 @@ export const groupQueryKeys = {
   detail: (groupId) => ['wiki', 'group', groupId ?? null],
 }
 
-/** 도서(판본)의 단체 목록과 도서 정보를 조회하고 캐싱한다. */
-export const useGroupList = (editionId) =>
+/** 도서(판본)의 단체 목록과 도서 정보를 조회하고 캐싱한다. `enabled`가 false면 조회하지 않는다. */
+export const useGroupList = (editionId, { enabled = true } = {}) =>
   useQuery({
     queryKey: groupQueryKeys.list(editionId),
     queryFn: () => groupApi.list(editionId),
+    enabled,
   })
 
 /** 단체 하나의 상세 정보를 조회하고 캐싱한다. 식별자가 없으면 조회하지 않고, 없는 단체(404)는 다시 시도하지 않는다. */

@@ -11,7 +11,7 @@ const RELATION_SECTIONS = [
 
 /**
  * 단체와 다른 단체의 관계를 우호, 대립, 중립으로 나누어 보여준다.
- * 우호·대립·중립 구역 제목은 항목이 없어도 항상 보여주고, 관계가 하나도 없으면 빈 상태 문구도 함께 표시한다.
+ * 항목이 있는 구역만 제목과 함께 보여주고, 관계가 하나도 없으면 빈 상태 문구를 표시한다.
  * `editable`이면 `관계` 제목, 단체 검색 줄, 항목별 `삭제` 버튼이 나타난다(Figma 편집 상태).
  *
  * @param {object} props 컴포넌트 props
@@ -21,7 +21,7 @@ const RELATION_SECTIONS = [
  * @param {(id: string) => void} [props.onRemove] `삭제`를 눌렀을 때 실행
  */
 export const GroupRelationList = ({ relations = {}, editable = false, onAdd, onRemove }) => {
-  const hasRelations = RELATION_SECTIONS.some((section) => relations[section.key]?.length > 0)
+  const sections = RELATION_SECTIONS.filter((section) => relations[section.key]?.length > 0)
 
   return (
     <div className="flex flex-col gap-1.5 p-3">
@@ -33,10 +33,10 @@ export const GroupRelationList = ({ relations = {}, editable = false, onAdd, onR
           <GroupSearchBar label="단체 검색" onAdd={onAdd} />
         </>
       )}
-      {!hasRelations && (
+      {sections.length === 0 && (
         <p className="py-8 text-center text-body text-text-secondary">아직 등록된 관계가 없어요.</p>
       )}
-      {RELATION_SECTIONS.map((section) => (
+      {sections.map((section) => (
         <section aria-labelledby={`group-relation-${section.key}`} key={section.key}>
           <h3
             className="mb-2 text-title-sm font-bold text-text-primary"
@@ -45,7 +45,7 @@ export const GroupRelationList = ({ relations = {}, editable = false, onAdd, onR
             {section.title}
           </h3>
           <ul>
-            {(relations[section.key] ?? []).map((group) => (
+            {relations[section.key].map((group) => (
               <li
                 className={`flex items-center gap-3.5 border-l p-3 ${section.borderClass}`}
                 key={group.id}

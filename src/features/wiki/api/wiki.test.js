@@ -21,6 +21,10 @@ describe('단체 API (실제 환경)', () => {
       editionId: 'e1',
       groups: [{ id: 'draft-1', name: '신규', unlockEpisode: 3, memberCount: 0, isDraft: true }],
     })
+    await groupApi.submitGroups({
+      editionId: 'e1',
+      groups: [{ name: '상세', unlockEpisode: 1, members: [], relations: {}, milestones: [] }],
+    })
     await groupApi.submitGroupDetail({
       groupId: 'g1',
       members: [],
@@ -46,6 +50,15 @@ describe('단체 API (실제 환경)', () => {
     })
     expect(apiClient.request).toHaveBeenNthCalledWith(4, {
       method: 'post',
+      url: '/v1/wiki/group-proposals',
+      data: {
+        editionId: 'e1',
+        groups: [{ name: '상세', unlockEpisode: 1, members: [], relations: {}, milestones: [] }],
+        removedGroupIds: [],
+      },
+    })
+    expect(apiClient.request).toHaveBeenNthCalledWith(5, {
+      method: 'post',
       url: '/v1/wiki/groups/g1/edit-proposals',
       data: { members: [], relations: {}, milestones: [] },
     })
@@ -64,7 +77,7 @@ describe('단체 API (개발 모의 응답)', () => {
     expect(list.items.length).toBeGreaterThan(0)
     expect(list.book.currentEpisode).toBe(32)
     expect(detail.group.name).toBe('그리핀도르')
-    expect(detail.group.relations.friendly[0].name).toBe('래번클로')
+    expect(detail.group.members.length).toBeGreaterThan(0)
     expect(apiClient.request).not.toHaveBeenCalled()
   })
 

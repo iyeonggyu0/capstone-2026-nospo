@@ -132,17 +132,22 @@ describe('GroupDetailScreen', () => {
 })
 
 describe('GroupRelationList', () => {
-  it('항목이 없어도 우호·대립·중립 구간 제목을 모두 보여준다', () => {
+  it('값이 있는 관계 구간만 제목과 함께 보여준다', () => {
     const html = renderWithRouter(<GroupRelationList relations={group.relations} />)
 
     expect(html).toContain('우호')
     expect(html).toContain('대립')
-    expect(html).toContain('중립')
+    expect(html).not.toContain('중립')
     expect(html).toContain('래번클로')
   })
 
-  it('관계가 없으면 빈 상태 문구를 보여준다', () => {
-    expect(renderWithRouter(<GroupRelationList />)).toContain('아직 등록된 관계가 없어요.')
+  it('관계가 없으면 구역 제목 없이 빈 상태 문구만 보여준다', () => {
+    const html = renderWithRouter(<GroupRelationList />)
+
+    expect(html).toContain('아직 등록된 관계가 없어요.')
+    expect(html).not.toContain('우호')
+    expect(html).not.toContain('대립')
+    expect(html).not.toContain('중립')
   })
 })
 
