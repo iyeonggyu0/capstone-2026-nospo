@@ -1,10 +1,13 @@
 /** 애플리케이션 URL을 한 곳에서 관리한다. */
 export const ROUTES = {
   ONBOARDING: '/',
+  COMMON_UI_PREVIEW: '/common-ui',
   HOME: '/home',
+  READING: '/reading',
   AUTH_LOGIN: '/auth/login',
   AUTH_SIGNUP: '/auth/signup',
   AUTH_COMPLETE: '/auth/complete',
+  WIKI: '/wiki',
   WIKI_SEARCH: '/wiki/search/:searchType',
   WIKI_ADD_EMPTY: '/wiki/add/empty',
   WIKI_ADD_PAGE: '/wiki/add/page',
@@ -17,4 +20,6 @@ export const ROUTES = {
   WIKI_REVIEW_LIST: '/wiki/reviews',
   WIKI_REVIEW_PROGRESS: '/wiki/reviews/:reviewId',
   MY: '/my',
+  MY_PROFILE: '/my/profile',
+  MY_PASSWORD: '/my/password',
 }
