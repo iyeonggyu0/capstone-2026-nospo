@@ -1,12 +1,13 @@
 import { apiClient } from '@/lib/api-client'
 
-const mockEnabled = import.meta.env.DEV
+const mockEnabled =
+  import.meta.env.DEV && new URLSearchParams(window.location.search).has('preview')
 const mock = mockEnabled ? import('./mock-auth') : null
 
 const request = async (method, path, data, config = {}) => {
   if (mock) return (await mock).request(method, path, data, config)
   const response = await apiClient.request({ method, url: `/v1${path}`, data, ...config })
-  return response.data.data
+  return response.data?.data
 }
 
 export const authApi = {
@@ -19,6 +20,11 @@ export const authApi = {
   signup: (data, key) =>
     request('post', '/auth/signup', data, { headers: { 'Idempotency-Key': key } }),
   login: (email, password) => request('post', '/auth/login', { email, password }),
+  sendPasswordReset: (email) => request('post', '/auth/password-resets', { email }),
+  verifyPasswordReset: (verificationId, code) =>
+    request('post', '/auth/password-resets/verify', { verificationId, code }),
+  completePasswordReset: (resetProof, newPassword) =>
+    request('post', '/auth/password-resets/complete', { resetProof, newPassword }),
 }
 
 export const isAuthMock = mockEnabled

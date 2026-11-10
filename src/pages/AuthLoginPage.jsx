@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faKakaoTalk } from '@fortawesome/free-brands-svg-icons'
 import { faAt } from '@fortawesome/free-solid-svg-icons'
@@ -8,7 +8,7 @@ import logoText from '@/assets/logo-text.svg'
 import { InputField } from '@/components/InputField'
 import { validateFields } from '@/components/validateFields'
 import { ROUTES } from '@/constants/routes'
-import { authApi, authError, useAuth } from '@/features/auth'
+import { authApi, authError, isAuthMock, useAuth } from '@/features/auth'
 
 /** 로그인 입력과 인증 수단을 안내한다. */
 const AuthLoginPage = () => {
@@ -16,6 +16,7 @@ const AuthLoginPage = () => {
   const [busy, setBusy] = useState(false)
   const [errors, setErrors] = useState({})
   const navigate = useNavigate()
+  const { search } = useLocation()
   const setSession = useAuth((state) => state.setSession)
 
   const handleLogin = async (event) => {
@@ -90,13 +91,12 @@ const AuthLoginPage = () => {
             autoComplete="current-password"
             required
           />
-          <button
+          <Link
             className="self-end text-label-sm font-medium text-teal-strong"
-            type="button"
-            onClick={showUnavailable}
+            to={`${ROUTES.AUTH_PASSWORD_RESET}${isAuthMock ? search : ''}`}
           >
             비밀번호를 잊으셨나요?
-          </button>
+          </Link>
           <button
             className="h-12 cursor-pointer rounded-lg bg-teal-strong text-body font-medium text-white disabled:cursor-not-allowed"
             type="submit"

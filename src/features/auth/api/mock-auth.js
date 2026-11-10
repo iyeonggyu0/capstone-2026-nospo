@@ -19,8 +19,34 @@ const terms = [
 ]
 let account
 let verifiedEmail
+let resetRequest
 
 export const request = async (method, path, data) => {
+  if (path === '/auth/password-resets') {
+    resetRequest = { email: data.email, id: crypto.randomUUID() }
+    return {
+      verificationId: resetRequest.id,
+      expiresAt: new Date(Date.now() + 600000).toISOString(),
+    }
+  }
+  if (path === '/auth/password-resets/verify') {
+    if (resetRequest?.id === data.verificationId && /^\d{6}$/.test(data.code)) {
+      return {
+        resetProof: 'dev-reset-proof',
+        expiresAt: new Date(Date.now() + 600000).toISOString(),
+      }
+    }
+    throw { response: { data: { error: { code: 'INVALID_VERIFICATION_CODE' } } } }
+  }
+  if (
+    path === '/auth/password-resets/complete' &&
+    data.resetProof === 'dev-reset-proof' &&
+    resetRequest
+  ) {
+    if (account?.email === resetRequest.email) account.password = data.newPassword
+    resetRequest = null
+    return
+  }
   if (path === '/terms') return { items: terms }
   if (path.startsWith('/terms/')) return terms.find((term) => path.endsWith(term.termVersionId))
   if (path.startsWith('/auth/availability/')) return { available: true }
