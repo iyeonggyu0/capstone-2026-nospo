@@ -207,9 +207,8 @@ const HomePage = () => {
           <>
             <div className="mt-[34px] flex h-[69px] items-end gap-2">
               {records.map((day, index) => {
-                const { pages, episodes, pageRatio, episodeRatio } = rhythms[index]
-                const totalRatio = pageRatio + episodeRatio
-                const height = totalRatio ? 12 + 36 * Math.max(pageRatio, episodeRatio) : 12
+                const { pages, episodes, pageHeight, episodeHeight } = rhythms[index]
+                const height = pageHeight + episodeHeight || 12
                 return (
                   <div
                     key={day.label}
@@ -228,14 +227,14 @@ const HomePage = () => {
                     >
                       {pages > 0 && (
                         <div
-                          className="w-full bg-teal-selected"
-                          style={{ height: `${(pageRatio / totalRatio) * 100}%` }}
+                          className="w-full shrink-0 bg-teal-selected"
+                          style={{ height: pageHeight }}
                         />
                       )}
                       {episodes > 0 && (
                         <div
-                          className="w-full bg-blue-info-light"
-                          style={{ height: `${(episodeRatio / totalRatio) * 100}%` }}
+                          className="w-full shrink-0 bg-blue-info-light"
+                          style={{ height: episodeHeight }}
                         />
                       )}
                     </div>

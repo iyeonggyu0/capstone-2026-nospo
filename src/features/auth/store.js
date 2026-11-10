@@ -1,5 +1,10 @@
 import { create } from 'zustand'
-import { apiClient, refreshAccessToken } from '@/lib/api-client'
+import {
+  apiClient,
+  invalidateSessionRequests,
+  refreshAccessToken,
+  setAuthenticationExpiredHandler,
+} from '@/lib/api-client'
 import { queryClient } from '@/lib/query-client'
 
 let restoreController
@@ -11,10 +16,12 @@ export const useAuth = create((set, get) => ({
   preview: false,
   enablePreview: () => set({ preview: true }),
   setSession: ({ accessToken, member }) => {
+    get().clearSession()
     apiClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`
     set({ member, status: 'authenticated' })
   },
   clearSession: () => {
+    invalidateSessionRequests()
     restoreController?.abort()
     restoreController = null
     delete apiClient.defaults.headers.common.Authorization
@@ -47,3 +54,5 @@ export const useAuth = create((set, get) => ({
     }
   },
 }))
+
+setAuthenticationExpiredHandler(() => useAuth.getState().clearSession())
