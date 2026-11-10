@@ -60,25 +60,25 @@ const HomePage = () => {
   const enabled = isLoggedIn && !preview
   const current = useQuery({
     queryKey: ['home', 'current'],
-    queryFn: homeApi.current,
+    queryFn: ({ signal }) => homeApi.current(signal),
     enabled,
     retry: false,
   })
   const monthly = useQuery({
     queryKey: ['home', 'summary', monthStart, today],
-    queryFn: () => homeApi.summary(monthStart, today),
+    queryFn: ({ signal }) => homeApi.summary(monthStart, today, signal),
     enabled,
     retry: false,
   })
   const weekly = useQuery({
     queryKey: ['home', 'summary', weekStart, today],
-    queryFn: () => homeApi.summary(weekStart, today),
+    queryFn: ({ signal }) => homeApi.summary(weekStart, today, signal),
     enabled,
     retry: false,
   })
   const notices = useQuery({
     queryKey: ['home', 'notices'],
-    queryFn: homeApi.notices,
+    queryFn: ({ signal }) => homeApi.notices(signal),
     enabled,
     retry: false,
   })

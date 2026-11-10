@@ -44,10 +44,12 @@ apiClient.interceptors.response.use(undefined, async (error) => {
   request._retried = true
   try {
     const token = await refreshAccessToken()
+    if (request.signal?.aborted) throw new axios.CanceledError('Request canceled')
     apiClient.defaults.headers.common.Authorization = `Bearer ${token}`
     request.headers.Authorization = `Bearer ${token}`
     return apiClient(request)
   } catch (refreshError) {
+    if (request.signal?.aborted) return Promise.reject(refreshError)
     delete apiClient.defaults.headers.common.Authorization
     return Promise.reject(refreshError)
   }
