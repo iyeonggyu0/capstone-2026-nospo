@@ -5,6 +5,8 @@ import { apiClient, refreshAccessToken } from '@/lib/api-client'
 export const useAuth = create((set, get) => ({
   member: null,
   status: 'unknown',
+  preview: false,
+  enablePreview: () => set({ preview: true }),
   setSession: ({ accessToken, member }) => {
     apiClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`
     set({ member, status: 'authenticated' })
@@ -14,7 +16,7 @@ export const useAuth = create((set, get) => ({
     set({ member: null, status: 'anonymous' })
   },
   restoreSession: async () => {
-    if (get().status !== 'unknown') return
+    if (!['unknown', 'error'].includes(get().status)) return
     set({ status: 'checking' })
     try {
       const accessToken = await refreshAccessToken()
@@ -22,8 +24,14 @@ export const useAuth = create((set, get) => ({
       apiClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`
       const response = await apiClient.get('/v1/me')
       if (get().status === 'checking') set({ member: response.data.data, status: 'authenticated' })
-    } catch {
-      if (get().status === 'checking') get().clearSession()
+    } catch (error) {
+      if (get().status !== 'checking') return
+      if (error.response?.status === 401) {
+        get().clearSession()
+      } else {
+        delete apiClient.defaults.headers.common.Authorization
+        set({ status: 'error' })
+      }
     }
   },
 }))

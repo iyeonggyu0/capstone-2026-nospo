@@ -152,6 +152,7 @@ const AuthPasswordResetPage = () => {
               id="reset-email"
               type="email"
               autoComplete="email"
+              readOnly={busy}
               required
               maxLength={254}
               value={email}

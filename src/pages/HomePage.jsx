@@ -8,11 +8,28 @@ import { useAuth, useIsLoggedIn } from '@/features/auth'
 const HomePage = () => {
   const isLoggedIn = useIsLoggedIn()
   const status = useAuth((state) => state.status)
+  const restoreSession = useAuth((state) => state.restoreSession)
   if (!isLoggedIn && (status === 'unknown' || status === 'checking')) {
     return (
       <p className="px-5 text-body text-text-secondary" role="status">
         로그인 상태를 확인하고 있어요.
       </p>
+    )
+  }
+  if (!isLoggedIn && status === 'error') {
+    return (
+      <div className="space-y-3 px-5" role="alert">
+        <p className="text-body text-text-secondary">
+          로그인 상태를 확인하지 못했어요. 연결 상태를 확인해 주세요.
+        </p>
+        <button
+          type="button"
+          className="text-body font-medium text-teal-strong"
+          onClick={restoreSession}
+        >
+          다시 시도
+        </button>
+      </div>
     )
   }
   if (!isLoggedIn) return <Navigate to={ROUTES.ONBOARDING} replace />

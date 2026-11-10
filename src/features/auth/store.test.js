@@ -11,7 +11,7 @@ import { useAuth } from './store'
 beforeEach(() => {
   vi.clearAllMocks()
   delete apiClient.defaults.headers.common.Authorization
-  useAuth.setState({ member: null, status: 'unknown' })
+  useAuth.setState({ member: null, status: 'unknown', preview: false })
 })
 
 describe('로그인 상태 복원', () => {
@@ -28,11 +28,23 @@ describe('로그인 상태 복원', () => {
     })
   })
 
-  it('복원에 실패하면 비로그인 상태가 된다', async () => {
-    refreshAccessToken.mockRejectedValue(new Error('no session'))
+  it('인증 실패 시 비로그인 상태가 된다', async () => {
+    refreshAccessToken.mockRejectedValue({ response: { status: 401 } })
     await useAuth.getState().restoreSession()
     expect(useAuth.getState()).toMatchObject({ status: 'anonymous', member: null })
   })
+
+  it.each([new Error('network'), { response: { status: 503 } }])(
+    '일시적인 복원 오류는 재시도할 수 있다',
+    async (error) => {
+      refreshAccessToken.mockRejectedValueOnce(error).mockResolvedValueOnce('access-token')
+      apiClient.get.mockResolvedValue({ data: { data: { memberId: 'member' } } })
+      await useAuth.getState().restoreSession()
+      expect(useAuth.getState().status).toBe('error')
+      await useAuth.getState().restoreSession()
+      expect(useAuth.getState().status).toBe('authenticated')
+    },
+  )
 
   it('복원 중 로그아웃하면 늦게 도착한 결과로 다시 로그인하지 않는다', async () => {
     let resolveRefresh

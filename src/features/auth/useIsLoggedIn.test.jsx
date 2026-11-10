@@ -2,14 +2,40 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 
-vi.mock('./store', () => ({
-  useAuth: (selector) => selector({ status: 'unknown', restoreSession: () => {} }),
+const state = vi.hoisted(() => ({
+  preview: false,
+  status: 'unknown',
+  restoreSession: () => {},
+  enablePreview: () => {},
 }))
+vi.mock('./store', () => ({ useAuth: (selector) => selector(state) }))
 
 import { useIsLoggedIn } from './useIsLoggedIn'
 
 afterEach(() => {
   vi.unstubAllEnvs()
+  state.preview = false
+})
+
+it('개발 미리보기 상태는 주소가 바뀌어도 유지하고 운영에서는 무시한다', () => {
+  state.preview = true
+  const Check = () => <span>{String(useIsLoggedIn())}</span>
+  vi.stubEnv('DEV', true)
+  expect(
+    renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/home']}>
+        <Check />
+      </MemoryRouter>,
+    ),
+  ).toContain('true')
+  vi.stubEnv('DEV', false)
+  expect(
+    renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/home']}>
+        <Check />
+      </MemoryRouter>,
+    ),
+  ).toContain('false')
 })
 
 it.each([

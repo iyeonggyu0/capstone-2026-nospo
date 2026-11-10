@@ -47,8 +47,8 @@ apiClient.interceptors.response.use(undefined, async (error) => {
     apiClient.defaults.headers.common.Authorization = `Bearer ${token}`
     request.headers.Authorization = `Bearer ${token}`
     return apiClient(request)
-  } catch {
+  } catch (refreshError) {
     delete apiClient.defaults.headers.common.Authorization
-    return Promise.reject(error)
+    return Promise.reject(refreshError)
   }
 })
