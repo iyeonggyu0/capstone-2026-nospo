@@ -6,6 +6,7 @@ import { ROUTES } from '@/constants/routes'
 
 const AuthCompletePage = lazy(() => import('@/pages/AuthCompletePage'))
 const AuthLoginPage = lazy(() => import('@/pages/AuthLoginPage'))
+const AuthPasswordResetPage = lazy(() => import('@/pages/AuthPasswordResetPage'))
 const AuthSignupPage = lazy(() => import('@/pages/AuthSignupPage'))
 const CommonUiPreviewPage = import.meta.env.DEV
   ? lazy(() => import('@/pages/dev/CommonUiPreviewPage'))
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
         ? [{ path: ROUTES.COMMON_UI_PREVIEW, element: renderPage(CommonUiPreviewPage) }]
         : []),
       { path: ROUTES.AUTH_LOGIN, element: renderPage(AuthLoginPage) },
+      { path: ROUTES.AUTH_PASSWORD_RESET, element: renderPage(AuthPasswordResetPage) },
       { path: ROUTES.AUTH_SIGNUP, element: renderPage(AuthSignupPage) },
       { path: ROUTES.AUTH_SIGNUP_VERIFY, element: renderPage(AuthSignupPage) },
       { path: ROUTES.AUTH_COMPLETE, element: renderPage(AuthCompletePage) },

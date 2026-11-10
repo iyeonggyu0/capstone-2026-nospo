@@ -16,6 +16,20 @@ export const apiClient = axios.create({
 
 let refreshPromise
 
+/** Refresh 쿠키로 접근 토큰을 재발급하며 동시 요청을 하나로 합친다. */
+export const refreshAccessToken = () => {
+  refreshPromise ||= axios
+    .post(`${API_BASE_URL}/v1/auth/token/refresh`, null, {
+      withCredentials: true,
+      timeout: apiClient.defaults.timeout,
+    })
+    .then((response) => response.data.data.accessToken)
+    .finally(() => {
+      refreshPromise = null
+    })
+  return refreshPromise
+}
+
 // 인증 요청은 재시도하지 않고, 보호된 요청의 만료 토큰만 한 번 갱신한다.
 apiClient.interceptors.response.use(undefined, async (error) => {
   const request = error.config
@@ -29,16 +43,7 @@ apiClient.interceptors.response.use(undefined, async (error) => {
   }
   request._retried = true
   try {
-    refreshPromise ||= axios
-      .post(`${API_BASE_URL}/v1/auth/token/refresh`, null, {
-        withCredentials: true,
-        timeout: apiClient.defaults.timeout,
-      })
-      .then((response) => response.data.data.accessToken)
-      .finally(() => {
-        refreshPromise = null
-      })
-    const token = await refreshPromise
+    const token = await refreshAccessToken()
     apiClient.defaults.headers.common.Authorization = `Bearer ${token}`
     request.headers.Authorization = `Bearer ${token}`
     return apiClient(request)
