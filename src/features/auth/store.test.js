@@ -3,24 +3,83 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/api-client', () => ({
   apiClient: { defaults: { headers: { common: {} } }, get: vi.fn() },
   refreshAccessToken: vi.fn(),
+  invalidateSessionRequests: vi.fn(),
+  setAuthenticationExpiredHandler: vi.fn(),
 }))
 
-import { apiClient, refreshAccessToken } from '@/lib/api-client'
+import { apiClient, refreshAccessToken, setAuthenticationExpiredHandler } from '@/lib/api-client'
+import { queryClient } from '@/lib/query-client'
 import { useAuth } from './store'
+
+const onAuthenticationExpired = vi.mocked(setAuthenticationExpiredHandler).mock.calls[0][0]
 
 beforeEach(() => {
   vi.clearAllMocks()
+  queryClient.clear()
   delete apiClient.defaults.headers.common.Authorization
   useAuth.setState({ member: null, status: 'unknown', preview: false })
 })
 
 describe('로그인 상태 복원', () => {
+  it('인증 만료 통지를 받으면 로그인 정보와 캐시를 정리한다', () => {
+    useAuth.getState().setSession({ accessToken: 'token', member: { memberId: 'a' } })
+    queryClient.setQueryData(['home', 'current'], { item: 'private' })
+    onAuthenticationExpired()
+    expect(useAuth.getState()).toMatchObject({ status: 'anonymous', member: null })
+    expect(queryClient.getQueryData(['home', 'current'])).toBeUndefined()
+  })
+  it('계정을 바로 변경해도 이전 계정 조회와 캐시를 정리한다', async () => {
+    useAuth.getState().setSession({ accessToken: 'user-a', member: { memberId: 'a' } })
+    queryClient.setQueryData(['home', 'current'], { item: { title: 'A의 책' } })
+    let finish
+    let signal
+    const request = queryClient
+      .fetchQuery({
+        queryKey: ['home', 'summary'],
+        queryFn: (context) => {
+          signal = context.signal
+          return new Promise((resolve) => {
+            finish = resolve
+          })
+        },
+      })
+      .catch(() => {})
+    useAuth.getState().setSession({ accessToken: 'user-b', member: { memberId: 'b' } })
+    expect(signal.aborted).toBe(true)
+    expect(queryClient.getQueryData(['home', 'current'])).toBeUndefined()
+    finish({ pages: 100 })
+    await request
+    expect(queryClient.getQueryData(['home', 'summary'])).toBeUndefined()
+    expect(useAuth.getState()).toMatchObject({ member: { memberId: 'b' }, status: 'authenticated' })
+  })
+  it('세션을 지우면 진행 중인 조회를 취소하고 늦은 응답도 캐시에 남기지 않는다', async () => {
+    let resolveRequest
+    let requestSignal
+    queryClient.setQueryData(['home', 'summary'], { pages: 35 })
+    const pending = queryClient
+      .fetchQuery({
+        queryKey: ['home', 'current'],
+        queryFn: ({ signal }) => {
+          requestSignal = signal
+          return new Promise((resolve) => {
+            resolveRequest = resolve
+          })
+        },
+      })
+      .catch(() => {})
+    useAuth.getState().clearSession()
+    expect(requestSignal.aborted).toBe(true)
+    expect(queryClient.getQueryData(['home', 'summary'])).toBeUndefined()
+    resolveRequest({ item: { title: '이전 계정의 책' } })
+    await pending
+    expect(queryClient.getQueryData(['home', 'current'])).toBeUndefined()
+  })
   it('쿠키로 토큰과 회원 정보를 복원하고 중복 요청을 막는다', async () => {
     refreshAccessToken.mockResolvedValue('access-token')
     apiClient.get.mockResolvedValue({ data: { data: { memberId: 'member' } } })
     await Promise.all([useAuth.getState().restoreSession(), useAuth.getState().restoreSession()])
     expect(refreshAccessToken).toHaveBeenCalledTimes(1)
-    expect(apiClient.get).toHaveBeenCalledWith('/v1/me')
+    expect(apiClient.get).toHaveBeenCalledWith('/v1/me', { signal: expect.any(AbortSignal) })
     expect(apiClient.defaults.headers.common.Authorization).toBe('Bearer access-token')
     expect(useAuth.getState()).toMatchObject({
       status: 'authenticated',
@@ -59,5 +118,23 @@ describe('로그인 상태 복원', () => {
     await restoring
     expect(useAuth.getState().status).toBe('anonymous')
     expect(apiClient.get).not.toHaveBeenCalled()
+  })
+
+  it('회원 정보를 조회하는 중 세션을 지우면 조회를 취소한다', async () => {
+    refreshAccessToken.mockResolvedValue('old-token')
+    let resolveMember
+    apiClient.get.mockReturnValue(
+      new Promise((resolve) => {
+        resolveMember = resolve
+      }),
+    )
+    const restoring = useAuth.getState().restoreSession()
+    await Promise.resolve()
+    const signal = apiClient.get.mock.calls[0][1].signal
+    useAuth.getState().clearSession()
+    expect(signal.aborted).toBe(true)
+    resolveMember({ data: { data: { memberId: 'old' } } })
+    await restoring
+    expect(useAuth.getState()).toMatchObject({ status: 'anonymous', member: null })
   })
 })
