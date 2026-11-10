@@ -10,7 +10,7 @@ const getTodayLabel = () => {
 
 const getHeaderProps = (pathname) => {
   if (pathname === ROUTES.HOME) {
-    return { title: '홈', rightContent: getTodayLabel() }
+    return { title: '홈', rightContent: getTodayLabel(), compact: true }
   }
 
   if (pathname === ROUTES.WIKI) {
