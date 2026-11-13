@@ -114,6 +114,7 @@ const WikiListPage = () => {
   const [sort, setSort] = useState('RECENT_ACTIVITY')
   const [previewCount, setPreviewCount] = useState(6)
   const moreHint = useRef(null)
+  const loadingMore = useRef(false)
   const shelf = useInfiniteQuery({
     queryKey: ['wiki', 'shelf', bookType, sort],
     queryFn: ({ pageParam, signal }) => getShelf({ bookType, sort, cursor: pageParam, signal }),
@@ -131,7 +132,12 @@ const WikiListPage = () => {
   const hasNext = preview ? previewCount < previewItems.length : shelf.hasNextPage
   const loadMore = () => {
     if (preview) setPreviewCount((count) => Math.min(count + 6, previewItems.length))
-    else if (shelf.hasNextPage && !shelf.isFetchingNextPage) void shelf.fetchNextPage()
+    else if (shelf.hasNextPage && !shelf.isFetchingNextPage && !loadingMore.current) {
+      loadingMore.current = true
+      void shelf.fetchNextPage().finally(() => {
+        loadingMore.current = false
+      })
+    }
   }
   const loadMoreRef = useRef(loadMore)
   useEffect(() => {
@@ -170,13 +176,13 @@ const WikiListPage = () => {
       }
     }
     scroller.addEventListener('wheel', onScrollIntent, { passive: true })
-    scroller.addEventListener('touchstart', onScrollIntent, { passive: true })
+    scroller.addEventListener('touchmove', onScrollIntent, { passive: true })
     scroller.addEventListener('keydown', onScrollIntent)
     return () => {
       clearTimeout(timer)
       observer.disconnect()
       scroller.removeEventListener('wheel', onScrollIntent)
-      scroller.removeEventListener('touchstart', onScrollIntent)
+      scroller.removeEventListener('touchmove', onScrollIntent)
       scroller.removeEventListener('keydown', onScrollIntent)
     }
   }, [hasNext, preview, shelf.isFetchNextPageError])
@@ -289,6 +295,25 @@ const WikiListPage = () => {
                   : '스크롤하여 더 보기'}
             </span>
           </button>
+        </div>
+      )}
+      {!preview && !reading && (current.isPending || current.isError) && (
+        <div
+          className="absolute right-5 bottom-[90px] left-5 z-10 rounded-xl border border-border bg-surface p-[14px] text-body text-text-secondary"
+          role={current.isError ? 'alert' : 'status'}
+        >
+          {current.isPending
+            ? '읽고 있는 책을 불러오고 있어요.'
+            : '읽고 있는 책을 불러오지 못했어요.'}
+          {current.isError && (
+            <button
+              type="button"
+              onClick={() => current.refetch()}
+              className="ml-2 text-teal-strong"
+            >
+              다시 시도
+            </button>
+          )}
         </div>
       )}
       {reading && (
