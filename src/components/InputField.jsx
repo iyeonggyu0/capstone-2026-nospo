@@ -37,7 +37,8 @@ export const InputField = ({
       {message && (
         <p
           id={messageId}
-          className={`text-caption ${isError ? 'text-right text-red-error' : 'text-text-secondary'}`}
+          className={`text-caption ${isError ? 'text-red-error' : 'text-text-secondary'}`}
+          aria-live={isError ? 'polite' : undefined}
         >
           {message}
         </p>

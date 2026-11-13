@@ -25,11 +25,17 @@ export const BookContext = ({
   coverImageAlt = '',
   captionSize = 'caption',
   className = '',
+  variant = 'default',
+  progressPercent,
+  action,
 }) => {
+  const isCurrent = variant === 'current'
   return (
-    <article className={`flex w-full items-center gap-3 rounded-xl bg-canvas p-3 ${className}`}>
+    <article
+      className={`flex w-full items-center ${isCurrent ? 'gap-4 bg-surface py-[18px]' : 'gap-3 rounded-xl bg-canvas p-3'} ${className}`}
+    >
       <div
-        className="flex h-[94px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-border"
+        className={`flex shrink-0 items-center justify-center overflow-hidden bg-border ${isCurrent ? 'h-[144px] w-[100px] rounded-xl' : 'h-[94px] w-[72px] rounded-lg'}`}
         role={coverImageSrc ? undefined : 'img'}
         aria-label={coverImageSrc ? undefined : '표지 이미지 준비 중'}
         style={
@@ -45,19 +51,42 @@ export const BookContext = ({
           <img className="size-full object-cover" src={coverImageSrc} alt={coverImageAlt} />
         ) : null}
       </div>
-      <div className="min-w-0 flex-1">
-        <h2 className="truncate text-title-sm font-medium text-text-primary">{title}</h2>
-        <div className="mt-0.5 flex min-w-0 items-center gap-2 text-label whitespace-nowrap">
-          <p className="shrink-0 font-medium text-teal-strong">{accentText}</p>
-          <span className="shrink-0 text-text-secondary" aria-hidden="true">
-            ·
-          </span>
-          <p
-            className={`truncate ${captionSizeClasses[captionSize] ?? captionSizeClasses.caption} text-text-secondary`}
-          >
-            {captionText}
-          </p>
+      <div className={`min-w-0 flex-1 ${isCurrent ? 'flex h-[144px] flex-col' : ''}`}>
+        {isCurrent && <p className="text-label-sm font-medium text-text-secondary">지금 읽는 책</p>}
+        <div className={isCurrent ? 'mt-1.5' : ''}>
+          <h2 className="truncate text-title-sm font-medium text-text-primary">{title}</h2>
+          <div className="mt-0.5 flex min-w-0 items-center gap-2 text-label whitespace-nowrap">
+            <p className="shrink-0 font-medium text-teal-strong">{accentText}</p>
+            <span className="shrink-0 text-text-secondary" aria-hidden="true">
+              ·
+            </span>
+            <p
+              className={`truncate ${captionSizeClasses[captionSize] ?? captionSizeClasses.caption} text-text-secondary`}
+            >
+              {captionText}
+            </p>
+          </div>
         </div>
+        {isCurrent && (
+          <div className="mt-auto">
+            {typeof progressPercent === 'number' && (
+              <div
+                className="h-1 overflow-hidden rounded-full bg-control-neutral"
+                role="progressbar"
+                aria-label="읽기 진행률"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.max(0, Math.min(100, progressPercent))}
+              >
+                <div
+                  className="h-full rounded-full bg-teal-strong"
+                  style={{ width: `${Math.max(0, Math.min(100, progressPercent))}%` }}
+                />
+              </div>
+            )}
+            {action && <div className="mt-2">{action}</div>}
+          </div>
+        )}
       </div>
     </article>
   )

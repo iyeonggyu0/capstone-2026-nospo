@@ -9,6 +9,7 @@ export const Header = ({
   showBackButton = false,
   rightContent,
   onBack,
+  compact = false,
 }) => {
   const showBack = variant === 'back' || showBackButton
 
@@ -28,7 +29,7 @@ export const Header = ({
 
   return (
     <header
-      className={`flex h-[76px] w-full gap-3 px-5 pt-5 ${showBack ? 'items-center' : 'items-start'}`}
+      className={`flex w-full gap-3 px-5 pt-5 ${compact ? 'h-16' : 'h-[76px]'} ${showBack ? 'items-center' : 'items-start'}`}
       aria-label={title ?? 'NOSPO'}
     >
       {showBack && (
