@@ -147,7 +147,6 @@ const WikiListPage = () => {
     const node = moreHint.current
     const scroller = node?.closest('main')
     if (!node || !scroller || !hasNext || (!preview && shelf.isFetchNextPageError)) return
-    let lastWheelTime = 0
     let ready = false
     let timer
     const observer = new IntersectionObserver(
@@ -163,11 +162,7 @@ const WikiListPage = () => {
     )
     observer.observe(node)
     const onScrollIntent = (event) => {
-      if (event.type === 'wheel') {
-        const previous = lastWheelTime
-        lastWheelTime = Date.now()
-        if (event.deltaY <= 0 || lastWheelTime - previous < 250) return
-      }
+      if (event.type === 'wheel' && event.deltaY <= 0) return
       if (event.type === 'keydown' && !['ArrowDown', 'PageDown', ' ', 'End'].includes(event.key))
         return
       if (ready) {
