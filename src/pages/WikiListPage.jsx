@@ -89,7 +89,7 @@ const SortMenu = ({ sort, onChange }) => {
                 setOpen(false)
                 trigger.current?.focus()
               }}
-                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-label-sm transition-colors ${sort === value ? 'bg-teal-subtle font-medium text-teal-strong' : 'text-text-secondary hover:bg-canvas'}`}
+              className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-label-sm transition-colors ${sort === value ? 'bg-teal-subtle font-medium text-teal-strong' : 'text-text-secondary hover:bg-canvas'}`}
             >
               {label}
               {sort === value && <FontAwesomeIcon icon={faCheck} className="text-[10px]" />}
