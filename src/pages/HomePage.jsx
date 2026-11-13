@@ -227,13 +227,13 @@ const HomePage = () => {
                     >
                       {pages > 0 && (
                         <div
-                          className="w-full shrink-0 bg-teal-selected"
+                          className="w-full shrink-0 bg-teal-reading"
                           style={{ height: pageHeight }}
                         />
                       )}
                       {episodes > 0 && (
                         <div
-                          className="w-full shrink-0 bg-blue-info-light"
+                          className="w-full shrink-0 bg-blue-reading"
                           style={{ height: episodeHeight }}
                         />
                       )}
@@ -248,11 +248,11 @@ const HomePage = () => {
               aria-label="그래프 범례"
             >
               <span className="flex items-center gap-1">
-                <span className="size-2.5 rounded-sm bg-teal-selected" />
+                <span className="size-2.5 rounded-sm bg-teal-reading" />
                 페이지
               </span>
               <span className="flex items-center gap-1">
-                <span className="size-2.5 rounded-sm bg-blue-info-light" />화
+                <span className="size-2.5 rounded-sm bg-blue-reading" />화
               </span>
             </div>
           </>
