@@ -1,7 +1,7 @@
 /** 요약 카드 크기(large·small)별 클래스 모음이다. */
 const sizeStyles = {
   large: {
-    avatar: 'size-[132px]',
+    avatar: 'size-33',
     name: 'text-headline font-bold',
     value: 'text-body font-medium',
   },

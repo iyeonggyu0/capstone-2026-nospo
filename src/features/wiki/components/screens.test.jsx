@@ -185,12 +185,39 @@ describe('편집 상태 레이아웃(Figma 기준)', () => {
 })
 
 describe('GroupMilestoneList', () => {
-  it('해금 시점이 큰 행적부터 최신 순으로 보여준다', () => {
+  it('전달받은 순서대로 행적을 보여준다(정렬은 부모가 맡는다)', () => {
     const html = renderWithRouter(<GroupMilestoneList milestones={group.milestones} />)
 
-    expect(html.indexOf('두 번째 행적')).toBeLessThan(html.indexOf('첫 번째 행적'))
+    expect(html.indexOf('첫 번째 행적')).toBeLessThan(html.indexOf('두 번째 행적'))
     expect(html).toContain('12화')
     expect(html).toContain('최신 순')
+  })
+
+  it('편집 모드에서는 구성원·관계·행적에 순서 손잡이 버튼을 보여준다', () => {
+    const member = renderWithRouter(
+      <GroupDetailScreen group={{ ...group, members: group.members }} mode="edit" />,
+    )
+    const relation = renderWithRouter(
+      <GroupRelationList editable onMove={() => {}} relations={group.relations} />,
+    )
+    const milestone = renderWithRouter(
+      <GroupMilestoneList editable milestones={group.milestones} onReorder={() => {}} />,
+    )
+
+    expect(member).toContain('서하준 순서 바꾸기')
+    expect(relation).toContain('래번클로 순서 바꾸기')
+    expect(milestone).toContain('첫 번째 행적 순서 바꾸기')
+    expect(renderWithRouter(<GroupMilestoneList milestones={group.milestones} />)).not.toContain(
+      '순서 바꾸기',
+    )
+  })
+
+  it('편집 모드의 관계는 비어 있는 구역도 보여줘 다른 구역으로 옮길 수 있게 한다', () => {
+    const html = renderWithRouter(
+      <GroupRelationList editable onMove={() => {}} relations={group.relations} />,
+    )
+
+    expect(html).toContain('중립')
   })
 
   it('편집 모드에서는 편집·삭제 버튼과 추가 버튼을 보여준다', () => {

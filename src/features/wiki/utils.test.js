@@ -9,6 +9,10 @@ import {
   getGroupDetailPath,
   getPersonRegisterPath,
   getUnlockLabel,
+  insertMilestoneLatest,
+  moveItem,
+  moveRelationItem,
+  sortMilestonesLatest,
   validateGroupName,
   validateMilestoneContent,
   validateUnlockEpisode,
@@ -170,5 +174,87 @@ describe('getUnlockLabel', () => {
 
   it('해금 시점 정보가 없으면 undefined를 돌려준다', () => {
     expect(getUnlockLabel({})).toBeUndefined()
+  })
+})
+
+describe('moveItem', () => {
+  const items = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+
+  it('항목을 빼서 새 위치에 끼워 넣는다', () => {
+    expect(moveItem(items, 'a', 2).map((item) => item.id)).toEqual(['b', 'c', 'a'])
+    expect(moveItem(items, 'c', 0).map((item) => item.id)).toEqual(['c', 'a', 'b'])
+  })
+
+  it('범위를 벗어난 위치는 처음이나 끝으로 맞추고 원본은 바꾸지 않는다', () => {
+    expect(moveItem(items, 'b', 99).map((item) => item.id)).toEqual(['a', 'c', 'b'])
+    expect(moveItem(items, 'b', -5).map((item) => item.id)).toEqual(['b', 'a', 'c'])
+    expect(items.map((item) => item.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('없는 식별자면 원본을 그대로 돌려준다', () => {
+    expect(moveItem(items, 'x', 0)).toBe(items)
+  })
+})
+
+describe('moveRelationItem', () => {
+  const relations = {
+    friendly: [{ id: 'g2' }, { id: 'g3' }],
+    hostile: [{ id: 'g4' }],
+  }
+
+  it('같은 구역 안에서 순서를 바꾼다', () => {
+    const result = moveRelationItem(relations, 'g2', 'friendly', 1)
+
+    expect(result.friendly.map((group) => group.id)).toEqual(['g3', 'g2'])
+    expect(result.hostile.map((group) => group.id)).toEqual(['g4'])
+  })
+
+  it('다른 구역으로 옮기고 원래 구역에서는 뺀다', () => {
+    const result = moveRelationItem(relations, 'g3', 'hostile', 0)
+
+    expect(result.friendly.map((group) => group.id)).toEqual(['g2'])
+    expect(result.hostile.map((group) => group.id)).toEqual(['g3', 'g4'])
+  })
+
+  it('데이터에 없던 구역(중립)으로도 옮길 수 있다', () => {
+    const result = moveRelationItem(relations, 'g4', 'neutral', 0)
+
+    expect(result.neutral.map((group) => group.id)).toEqual(['g4'])
+    expect(result.hostile).toEqual([])
+  })
+
+  it('없는 식별자면 원본을 그대로 돌려준다', () => {
+    expect(moveRelationItem(relations, 'x', 'friendly', 0)).toBe(relations)
+  })
+})
+
+describe('sortMilestonesLatest / insertMilestoneLatest', () => {
+  const milestones = [
+    { id: 'm1', unlockEpisode: 4 },
+    { id: 'm2', unlockEpisode: 12 },
+    { id: 'm3', unlockEpisode: 4 },
+  ]
+
+  it('해금 시점이 큰 순서로 정렬하고 같은 시점은 원래 순서를 지킨다', () => {
+    expect(sortMilestonesLatest(milestones).map((item) => item.id)).toEqual(['m2', 'm1', 'm3'])
+  })
+
+  it('새 행적은 해금 시점이 더 작은 첫 행적 앞에 끼워 넣어 직접 바꾼 순서를 유지한다', () => {
+    const manual = [
+      { id: 'a', unlockEpisode: 2 },
+      { id: 'b', unlockEpisode: 9 },
+    ]
+    const result = insertMilestoneLatest(manual, { id: 'n', unlockEpisode: 5 })
+
+    expect(result.map((item) => item.id)).toEqual(['n', 'a', 'b'])
+  })
+
+  it('더 작은 시점이 없으면 맨 끝에 붙인다', () => {
+    const result = insertMilestoneLatest([{ id: 'a', unlockEpisode: 9 }], {
+      id: 'n',
+      unlockEpisode: 5,
+    })
+
+    expect(result.map((item) => item.id)).toEqual(['a', 'n'])
   })
 })

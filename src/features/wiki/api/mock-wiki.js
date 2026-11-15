@@ -20,13 +20,20 @@ const book = {
 /** 모의 단체 목록이다. 단체 이름은 모두 예시이며, 목록은 샘플 하나만 둔다. */
 const groups = [{ id: 'g1', name: '그리핀도르', scale: '중', memberCount: 12 }]
 
+/** 모의 인물 더미 목록이다. 인물 수는 이 목록의 길이로 정하며, 이름은 모두 예시다. */
+const persons = [
+  { id: 'p1', name: '서하준' },
+  { id: 'p2', name: '김민솔' },
+  { id: 'p3', name: '구교승' },
+]
+
 /** 단체 식별자별 모의 상세 정보(구성원·관계·주요 행적)다. */
 const details = {
   g1: {
     members: [
       { id: 'p1', name: '서하준', unlockEpisode: 1 },
-      { id: 'p2', name: '이도윤', unlockEpisode: 3 },
-      { id: 'p3', name: '박지우', unlockEpisode: 7 },
+      { id: 'p2', name: '김민솔', unlockEpisode: 3 },
+      { id: 'p3', name: '구교승', unlockEpisode: 7 },
     ],
     relations: {},
     milestones: [
@@ -92,7 +99,7 @@ export const request = async (method, path, data) => {
   if (method === 'get' && path === '/wiki/groups') {
     return {
       book,
-      personCount: 7,
+      personCount: persons.length,
       items: groups.map(({ id, name, memberCount }) => ({
         id,
         name,

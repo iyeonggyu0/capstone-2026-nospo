@@ -78,6 +78,7 @@ describe('단체 API (개발 모의 응답)', () => {
     expect(list.book.currentEpisode).toBe(32)
     expect(detail.group.name).toBe('그리핀도르')
     expect(detail.group.members.length).toBeGreaterThan(0)
+    expect(list.personCount).toBeGreaterThan(0)
     expect(apiClient.request).not.toHaveBeenCalled()
   })
 

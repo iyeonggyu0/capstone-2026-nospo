@@ -11,7 +11,7 @@ export const MILESTONE_MAX_LENGTH = 100
  * 단체 식별자는 쿼리(`?groupId=`)로, 모드는 `?mode=`로 전달하고, 특수문자는 안전하게 인코딩한다.
  *
  * @param {string | number} groupId 상세 화면에서 보여줄 단체 식별자
- * @param {'view' | 'edit'} [mode] 상세 화면 모드. 생략하면 쿼리에 붙이지 않는다(보기).
+ * @param {'view' | 'edit'} [mode] 상세 화면 모드. 생략하면 쿼리에 붙이지 않으며, 화면은 편집 모드로 연다. 보기만 하려면 `view`를 준다.
  * @returns {string} 예: `/wiki/register/group/detail?groupId=g1&mode=edit`
  */
 export const getGroupDetailPath = (groupId, mode) => {
@@ -141,3 +141,73 @@ export const getPersonRegisterPath = (editionId) =>
   editionId
     ? `${ROUTES.WIKI_REGISTER_PERSON}?${new URLSearchParams({ editionId })}`
     : ROUTES.WIKI_REGISTER_PERSON
+
+/**
+ * 목록에서 한 항목을 빼서 원하는 위치로 옮긴 새 배열을 만든다. 원본 배열은 바꾸지 않는다.
+ *
+ * @param {Array<{ id: string }>} items 항목 목록
+ * @param {string} id 옮길 항목 식별자
+ * @param {number} toIndex 항목을 뺀 뒤의 목록 기준 새 위치. 범위를 벗어나면 처음이나 끝으로 맞춘다.
+ * @returns {Array} 순서를 바꾼 목록. 없는 식별자면 원본을 그대로 돌려준다.
+ */
+export const moveItem = (items, id, toIndex) => {
+  const item = items.find((candidate) => candidate.id === id)
+  if (!item) return items
+
+  const rest = items.filter((candidate) => candidate.id !== id)
+  const index = Math.max(0, Math.min(toIndex, rest.length))
+
+  return [...rest.slice(0, index), item, ...rest.slice(index)]
+}
+
+/**
+ * 관계 단체 하나를 같은 구역 안이나 다른 구역(우호·대립·중립)의 원하는 위치로 옮긴다.
+ *
+ * @param {{ friendly?: Array, hostile?: Array, neutral?: Array }} relations 관계별 단체 목록
+ * @param {string} id 옮길 단체 식별자
+ * @param {string} toType 옮겨 갈 구역 (friendly, hostile, neutral)
+ * @param {number} toIndex 단체를 뺀 뒤의 구역 기준 새 위치. 범위를 벗어나면 처음이나 끝으로 맞춘다.
+ * @returns {object} 옮긴 뒤의 관계 목록. 없는 식별자면 원본을 그대로 돌려준다.
+ */
+export const moveRelationItem = (relations, id, toType, toIndex) => {
+  const item = Object.values(relations)
+    .flat()
+    .find((candidate) => candidate.id === id)
+  if (!item) return relations
+
+  const rest = Object.fromEntries(
+    Object.entries(relations).map(([type, groups]) => [
+      type,
+      groups.filter((candidate) => candidate.id !== id),
+    ]),
+  )
+  const target = rest[toType] ?? []
+  const index = Math.max(0, Math.min(toIndex, target.length))
+
+  return { ...rest, [toType]: [...target.slice(0, index), item, ...target.slice(index)] }
+}
+
+/**
+ * 주요 행적을 해금 시점이 큰(최신) 순서로 정렬한 새 배열을 만든다. 같은 시점은 원래 순서를 지킨다.
+ *
+ * @param {Array<{ unlockEpisode?: number }>} milestones 행적 목록
+ * @returns {Array} 최신 순으로 정렬한 목록
+ */
+export const sortMilestonesLatest = (milestones) =>
+  [...milestones].sort((a, b) => (b.unlockEpisode ?? 0) - (a.unlockEpisode ?? 0))
+
+/**
+ * 새 행적을 해금 시점 순서에 맞는 위치에 끼워 넣는다. 사용자가 직접 바꾼 기존 순서는 건드리지 않는다.
+ *
+ * @param {Array<{ unlockEpisode?: number }>} milestones 현재 행적 목록
+ * @param {{ unlockEpisode?: number }} milestone 추가할 행적
+ * @returns {Array} 행적을 추가한 목록. 해금 시점이 더 작은 첫 행적 바로 앞에 들어간다.
+ */
+export const insertMilestoneLatest = (milestones, milestone) => {
+  const index = milestones.findIndex(
+    (candidate) => (candidate.unlockEpisode ?? 0) < (milestone.unlockEpisode ?? 0),
+  )
+  if (index === -1) return [...milestones, milestone]
+
+  return [...milestones.slice(0, index), milestone, ...milestones.slice(index)]
+}

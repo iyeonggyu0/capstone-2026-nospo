@@ -108,12 +108,14 @@ const GroupDetailContent = ({
             members={draft.members}
             onAdd={onAddMember ?? draft.addMember}
             onRemove={draft.removeMember}
+            onReorder={draft.moveMember}
           />
         )}
         {tab === 'relations' && (
           <GroupRelationList
             editable={isEdit}
             onAdd={onAddRelation ?? draft.addRelation}
+            onMove={draft.moveRelation}
             onRemove={draft.removeRelation}
             relations={draft.relations}
           />
@@ -126,6 +128,7 @@ const GroupDetailContent = ({
             milestones={draft.milestones}
             onAdd={draft.addMilestone}
             onRemove={draft.removeMilestone}
+            onReorder={draft.moveMilestone}
             onUpdate={draft.updateMilestone}
           />
         )}
