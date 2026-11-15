@@ -88,13 +88,16 @@ const tabs = [
   { id: 'OTHER', label: '기타' },
 ]
 
-const getDraftStorageKey = (bookId) => `nospo:wiki-person-draft:${bookId ?? 'preview'}`
+const getDraftStorageKey = (bookId, mode = 'UPDATE') =>
+  mode === 'CREATE'
+    ? `nospo:wiki-person-draft:create:${bookId ?? 'preview'}`
+    : `nospo:wiki-person-draft:${bookId ?? 'preview'}`
 
-const readStoredPeople = (bookId) => {
+const readStoredPeople = (bookId, mode) => {
   if (typeof window === 'undefined') return null
 
   try {
-    const savedDraft = window.sessionStorage.getItem(getDraftStorageKey(bookId))
+    const savedDraft = window.sessionStorage.getItem(getDraftStorageKey(bookId, mode))
     const people = savedDraft ? JSON.parse(savedDraft) : null
     return Array.isArray(people) ? people : null
   } catch {
@@ -119,10 +122,12 @@ const getPositionValue = (position) => {
   return 1
 }
 
-const getPositionLabel = (position) => {
-  const volume = position?.volume ?? position?.volumeNumber ?? 2
-  const chapter = position?.chapter ?? position?.chapterNumber ?? 7
-  return `${volume}권 ${chapter}장 수정`
+const getPositionLabel = (position, mode) => {
+  const action = mode === 'CREATE' ? '등록' : '수정'
+  const volume = position?.volume ?? position?.volumeNumber
+  const chapter = position?.chapter ?? position?.chapterNumber
+  const label = volume && chapter ? `${volume}권 ${chapter}장` : `${getPositionValue(position)}화`
+  return `${label} ${action}`
 }
 
 const GenderIcon = ({ gender, selected = false, size = 'size-4' }) => {
@@ -140,7 +145,7 @@ const GenderIcon = ({ gender, selected = false, size = 'size-4' }) => {
         />
       ) : (
         <path
-          d="M8 0.99994C6.93913 0.99994 5.92172 1.42137 5.17157 2.17151C4.42143 2.92166 4 3.93907 4 4.99994C4 6.06081 4.42143 7.07822 5.17157 7.82837C5.92172 8.57851 6.93913 8.99994 8 8.99994C9.06087 8.99994 10.0783 8.57851 10.8284 7.82837C11.5786 7.07822 12 6.06081 12 4.99994C12 3.93907 11.5786 2.92166 10.8284 2.17151C10.0783 1.42137 9.06087 0.99994 8 0.99994ZM3 4.99994C3.00001 4.03235 3.28077 3.08556 3.80823 2.27438C4.33568 1.4632 5.08717 0.822483 5.97156 0.429945C6.85594 0.0374067 7.83523 -0.0900927 8.79064 0.0629099C9.74605 0.215912 10.6365 0.642844 11.3541 1.29192C12.0717 1.94101 12.5855 2.78435 12.8333 3.71968C13.0811 4.655 13.0521 5.64213 12.75 6.56133C12.4478 7.48053 11.8855 8.29232 11.1311 8.89824C10.3767 9.50416 9.46274 9.87818 8.5 9.97494V11.9999H10.5C10.6326 11.9999 10.7598 12.0526 10.8536 12.1464C10.9473 12.2402 11 12.3673 11 12.4999C11 12.6325 10.9473 12.7597 10.8536 12.8535C10.7598 12.9473 10.6326 12.9999 10.5 12.9999H8.5V15.4999C8.5 15.6325 8.44732 15.7597 8.35355 15.8535C8.25979 15.9211 8.13261 15.9999 8 15.9999C7.86739 15.9999 7.74021 15.9211 7.64645 15.8535C7.55268 15.7597 7.5 15.6325 7.5 15.4999V12.9999H5.5C5.36739 12.9999 5.24021 12.9473 5.14645 12.8535C5.05268 12.7597 5 12.6325 5 12.4999C5 12.3673 5.05268 12.1464 5.14645 12.1464C5.14645 12.1464 5.36739 12.1464 5.5 12.1464H7.5V9.97494C6.26668 9.85099 5.12337 9.27335 4.29188 8.35408C3.46038 7.43482 2.99998 6.23947 3 4.99994Z"
+          d="M8 0.99994C6.93913 0.99994 5.92172 1.42137 5.17157 2.17151C4.42143 2.92166 4 3.93907 4 4.99994C4 6.06081 4.42143 7.07822 5.17157 7.82837C5.92172 8.57851 6.93913 8.99994 8 8.99994C9.06087 8.99994 10.0783 8.57851 10.8284 7.82837C11.5786 7.07822 12 6.06081 12 4.99994C12 3.93907 11.5786 2.92166 10.8284 2.17151C10.0783 1.42137 9.06087 0.99994 8 0.99994ZM3 4.99994C3.00001 4.03235 3.28077 3.08556 3.80823 2.27438C4.33568 1.4632 5.08717 0.822483 5.97156 0.429945C6.85594 0.0374067 7.83523 -0.0900927 8.79064 0.0629099C9.74605 0.215912 10.6365 0.642844 11.3541 1.29192C12.0717 1.94101 12.5855 2.78435 12.8333 3.71968C13.0811 4.655 13.0521 5.64213 12.75 6.56133C12.4478 7.48053 11.8855 8.29232 11.1311 8.89824C10.3767 9.50416 9.46274 9.87818 8.5 9.97494V11.9999H10.5C10.6326 11.9999 10.7598 12.0526 10.8536 12.1464C10.9473 12.2402 11 12.3673 11 12.4999C11 12.6325 10.9473 12.7597 10.8536 12.8535C10.7598 12.9473 10.6326 12.9999 10.5 12.9999H8.5V15.4999C8.5 15.6325 8.44732 15.7597 8.35355 15.8535C8.25979 15.9473 8.13261 15.9999 8 15.9999C7.86739 15.9999 7.74021 15.9473 7.64645 15.8535C7.55268 15.7597 7.5 15.6325 7.5 15.4999V12.9999H5.5C5.36739 12.9999 5.24021 12.9473 5.14645 12.8535C5.05268 12.7597 5 12.6325 5 12.4999C5 12.3673 5.05268 12.2402 5.14645 12.1464C5.24021 12.0526 5.36739 11.9999 5.5 11.9999H7.5V9.97494C6.26668 9.85099 5.12337 9.27335 4.29188 8.35408C3.46038 7.43482 2.99998 6.23947 3 4.99994Z"
           fill={color}
           fillRule="evenodd"
         />
@@ -156,18 +161,22 @@ const WikiRegisterPersonPage = () => {
   const params = useMemo(() => new URLSearchParams(location.search), [location.search])
   const book = location.state?.book ?? {}
   const bookId = location.state?.bookId ?? params.get('bookId')
+  const mode = location.state?.mode ?? params.get('mode') ?? 'UPDATE'
+  const isWikiCreation = mode === 'CREATE'
   const position =
     location.state?.position ?? Number(params.get('position') || (import.meta.env.DEV ? 32 : 1))
   const positionValue = getPositionValue(position)
-  const positionLabel = getPositionLabel(position)
+  const positionLabel = getPositionLabel(position, mode)
   const [people, setPeople] = useState(() => {
-    const savedPeople = readStoredPeople(bookId)
+    const savedPeople = readStoredPeople(bookId, mode)
     if (savedPeople) return savedPeople
+    if (isWikiCreation) return []
     return import.meta.env.DEV && !bookId ? previewPeople : []
   })
   const [modal, setModal] = useState(null)
   const [form, setForm] = useState(emptyPerson(positionValue))
   const [selectedTab, setSelectedTab] = useState('EVENT')
+  const [selectedCategory, setSelectedCategory] = useState('CHARACTER')
   const [activePersonId, setActivePersonId] = useState(null)
   const [query, setQuery] = useState('')
   const [organizations, setOrganizations] = useState([])
@@ -218,7 +227,7 @@ const WikiRegisterPersonPage = () => {
   }
   const saveDraftAndReturn = () => {
     try {
-      window.sessionStorage.setItem(getDraftStorageKey(bookId), JSON.stringify(people))
+      window.sessionStorage.setItem(getDraftStorageKey(bookId, mode), JSON.stringify(people))
       navigate(-1)
     } catch {
       setNotice('이 브라우저에서는 임시 저장을 사용할 수 없어요.')
@@ -290,7 +299,9 @@ const WikiRegisterPersonPage = () => {
 
       <main className={`flex-1 px-5 ${activePerson ? 'pt-6' : 'pt-7'}`}>
         <div className="flex items-center justify-between">
-          <h1 className="text-title font-bold">{activePerson ? '인물 정보' : '위키 내용 편집'}</h1>
+          <h1 className="text-title font-bold">
+            {activePerson ? '인물 정보' : isWikiCreation ? '위키 내용 등록' : '위키 내용 편집'}
+          </h1>
           {activePerson && (
             <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-teal-subtle px-3 text-label font-medium text-teal-strong">
               <svg aria-hidden="true" className="size-4" fill="none" viewBox="0 0 24 24">
@@ -314,10 +325,11 @@ const WikiRegisterPersonPage = () => {
 
         {!activePerson ? (
           <>
-            <div className="mt-[10px] grid grid-cols-2 gap-2" role="tablist" aria-label="위키 유형">
+            <div className="mt-[10px] grid grid-cols-3 gap-2" role="tablist" aria-label="위키 유형">
               <button
-                aria-selected="true"
-                className="h-8 rounded-lg bg-teal-selected text-label font-medium text-white"
+                aria-selected={selectedCategory === 'CHARACTER'}
+                className={`h-8 rounded-lg text-label font-medium ${selectedCategory === 'CHARACTER' ? 'bg-teal-selected text-white' : 'bg-control-neutral text-text-secondary'}`}
+                onClick={() => setSelectedCategory('CHARACTER')}
                 role="tab"
                 type="button"
               >
@@ -332,69 +344,85 @@ const WikiRegisterPersonPage = () => {
               >
                 단체
               </button>
+              <button
+                aria-selected={selectedCategory === 'RELATIONSHIP_MAP'}
+                className={`h-8 rounded-lg text-label font-medium ${selectedCategory === 'RELATIONSHIP_MAP' ? 'bg-teal-selected text-white' : 'bg-control-neutral text-text-secondary'}`}
+                onClick={() => setSelectedCategory('RELATIONSHIP_MAP')}
+                role="tab"
+                type="button"
+              >
+                관계도
+              </button>
             </div>
-            <div className="mt-3 flex h-[37px] w-[calc(100%+8px)] items-center gap-2 rounded-lg bg-amber-background px-3 text-caption text-amber-foreground">
-              <span aria-hidden="true" className="text-body">
-                ✧
-              </span>
-              <span>검수 승인 시 AI 토큰 최대 10개를 보상으로 드려요.</span>
-            </div>
-            <ul className="mt-[14px] divide-y divide-border/50">
-              {people.map((person) => (
-                <li key={person.id} className="flex min-h-[72px] items-center gap-3">
-                  <button
-                    className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 text-left"
-                    onClick={() => setActivePersonId(person.id)}
-                    type="button"
-                  >
-                    {person.imageUrl ? (
-                      <img
-                        alt=""
-                        className="size-10 rounded-full object-cover"
-                        src={person.imageUrl}
-                      />
-                    ) : (
-                      <span
-                        className="size-10 shrink-0 rounded-full bg-teal-strong"
-                        aria-hidden="true"
-                      />
-                    )}
-                    <span className="min-w-0">
-                      <span className="block truncate text-body-lg font-medium">{person.name}</span>
-                      <span className="mt-0.5 block text-label text-text-secondary">
-                        {person.gender === '남성'
-                          ? '남'
-                          : person.gender === '여성'
-                            ? '여'
-                            : person.gender === '인외'
-                              ? '인외'
-                              : '기타'}{' '}
-                        · {person.age ? `${person.age}살` : '나이 미정'} ·{' '}
-                        {person.affiliation || '소속 미정'}
-                      </span>
-                    </span>
-                  </button>
-                  <button
-                    aria-label={`${person.name} 정보 보기`}
-                    className="flex size-11 shrink-0 items-center justify-center text-text-secondary"
-                    onClick={() => setActivePersonId(person.id)}
-                    type="button"
-                  >
-                    ›
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <button
-              className="mt-3 flex min-h-16 w-full items-center justify-center gap-1 text-label text-text-secondary"
-              onClick={openCreate}
-              type="button"
-            >
-              신규 인물 추가{' '}
-              <span aria-hidden="true" className="text-body">
-                ＋
-              </span>
-            </button>
+            {selectedCategory === 'RELATIONSHIP_MAP' ? (
+              <div className="min-h-[360px]" role="tabpanel" aria-label="관계도 추가 화면 예정" />
+            ) : (
+              <>
+                <div className="mt-3 flex h-[37px] w-[calc(100%+8px)] items-center gap-2 rounded-lg bg-amber-background px-3 text-caption text-amber-foreground">
+                  <span aria-hidden="true" className="text-body">
+                    ✧
+                  </span>
+                  <span>검수 승인 시 AI 토큰 최대 10개를 보상으로 드려요.</span>
+                </div>
+                <ul className="mt-[14px] divide-y divide-border/50">
+                  {people.map((person) => (
+                    <li key={person.id} className="flex min-h-[72px] items-center gap-3">
+                      <button
+                        className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 text-left"
+                        onClick={() => setActivePersonId(person.id)}
+                        type="button"
+                      >
+                        {person.imageUrl ? (
+                          <img
+                            alt=""
+                            className="size-10 rounded-full object-cover"
+                            src={person.imageUrl}
+                          />
+                        ) : (
+                          <span
+                            className="size-10 shrink-0 rounded-full bg-teal-strong"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span className="min-w-0">
+                          <span className="block truncate text-body-lg font-medium">
+                            {person.name}
+                          </span>
+                          <span className="mt-0.5 block text-label text-text-secondary">
+                            {person.gender === '남성'
+                              ? '남'
+                              : person.gender === '여성'
+                                ? '여'
+                                : person.gender === '인외'
+                                  ? '인외'
+                                  : '기타'}{' '}
+                            · {person.role || '비중 미정'} · {person.affiliation || '소속 미정'}
+                          </span>
+                        </span>
+                      </button>
+                      <button
+                        aria-label={`${person.name} 정보 보기`}
+                        className="flex size-11 shrink-0 items-center justify-center text-text-secondary"
+                        onClick={() => setActivePersonId(person.id)}
+                        type="button"
+                      >
+                        ›
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  className="mt-3 flex min-h-16 w-full items-center justify-center gap-1 text-label text-text-secondary"
+                  onClick={openCreate}
+                  type="button"
+                >
+                  신규 인물 추가{' '}
+                  <span aria-hidden="true" className="text-body">
+                    ＋
+                  </span>
+                </button>
+              </>
+            )}
           </>
         ) : (
           <section className="mt-3" aria-label="인물 상세 편집">
