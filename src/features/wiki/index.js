@@ -1,6 +1,12 @@
 export { WikiCharacterImagePicker } from './components/WikiCharacterImagePicker'
 export { WikiEmptyStateDialog } from './components/WikiEmptyStateDialog'
 export {
+  getPersonImage,
+  restorePersonDraft,
+  storePersonDraft,
+  storePersonImage,
+} from './utils/personDraftStorage'
+export {
   createWikiCharacter,
   createWikiCharacterEntry,
   createWikiDraft,

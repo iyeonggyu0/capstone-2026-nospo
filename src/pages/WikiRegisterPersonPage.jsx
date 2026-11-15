@@ -1,8 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/common-ui'
-import { WikiCharacterImagePicker } from '@/features/wiki'
+import {
+  createWikiCharacter,
+  createWikiDraft,
+  getPersonImage,
+  restorePersonDraft,
+  storePersonDraft,
+  storePersonImage,
+  submitWikiDraft,
+  uploadWikiDraftAsset,
+  WikiCharacterImagePicker,
+} from '@/features/wiki'
 import chevronLeft from '@/assets/icons/header/chevron-left.svg'
 import bookCoverPreview from '@/assets/images/wiki-book-cover-preview.png'
 
@@ -93,18 +103,6 @@ const getDraftStorageKey = (bookId, mode = 'UPDATE') =>
     ? `nospo:wiki-person-draft:create:${bookId ?? 'preview'}`
     : `nospo:wiki-person-draft:${bookId ?? 'preview'}`
 
-const readStoredPeople = (bookId, mode) => {
-  if (typeof window === 'undefined') return null
-
-  try {
-    const savedDraft = window.sessionStorage.getItem(getDraftStorageKey(bookId, mode))
-    const people = savedDraft ? JSON.parse(savedDraft) : null
-    return Array.isArray(people) ? people : null
-  } catch {
-    return null
-  }
-}
-
 const emptyPerson = (revealAt = 1) => ({
   name: '',
   affiliation: '',
@@ -121,6 +119,11 @@ const getPositionValue = (position) => {
     return Number(position.value ?? position.positionValue ?? 1)
   return 1
 }
+
+const toApiPosition = (position, fallbackValue = 1) =>
+  position && typeof position === 'object'
+    ? position
+    : { unit: 'EPISODE', value: Number(position) || fallbackValue }
 
 const getPositionLabel = (position, mode) => {
   const action = mode === 'CREATE' ? '등록' : '수정'
@@ -167,9 +170,8 @@ const WikiRegisterPersonPage = () => {
     location.state?.position ?? Number(params.get('position') || (import.meta.env.DEV ? 32 : 1))
   const positionValue = getPositionValue(position)
   const positionLabel = getPositionLabel(position, mode)
+  const previewUrls = useRef(new Set())
   const [people, setPeople] = useState(() => {
-    const savedPeople = readStoredPeople(bookId, mode)
-    if (savedPeople) return savedPeople
     if (isWikiCreation) return []
     return import.meta.env.DEV && !bookId ? previewPeople : []
   })
@@ -181,6 +183,27 @@ const WikiRegisterPersonPage = () => {
   const [query, setQuery] = useState('')
   const [organizations, setOrganizations] = useState([])
   const [notice, setNotice] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const objectUrls = previewUrls.current
+    restorePersonDraft(getDraftStorageKey(bookId, mode))
+      .then((savedPeople) => {
+        if (!cancelled && savedPeople) {
+          savedPeople.forEach((person) => {
+            if (person.imageUrl) objectUrls.add(person.imageUrl)
+          })
+          setPeople(savedPeople)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+      objectUrls.forEach((url) => URL.revokeObjectURL(url))
+      objectUrls.clear()
+    }
+  }, [bookId, mode])
 
   const activePerson = people.find((person) => person.id === activePersonId)
   const openCreate = () => {
@@ -226,11 +249,90 @@ const WikiRegisterPersonPage = () => {
     navigate(-1)
   }
   const saveDraftAndReturn = () => {
+    const storedPeople = people.map((person) => {
+      const storedPerson = { ...person }
+      delete storedPerson.imageUrl
+      return storedPerson
+    })
+    storePersonDraft(getDraftStorageKey(bookId, mode), storedPeople)
+      .then(() => {
+        navigate(-1)
+      })
+      .catch((error) => setNotice(error.message || '임시 저장에 실패했어요.'))
+  }
+
+  const submitForReview = async () => {
+    if (isSubmitting) return
+    if (!bookId || people.length === 0) {
+      setNotice('도서 정보와 인물을 확인해 주세요.')
+      return
+    }
+    if (mode === 'UPDATE' && (!location.state?.wikiId || location.state?.baseWikiVersion == null)) {
+      setNotice('위키 수정 정보가 없어 제출할 수 없어요. 이전 화면에서 다시 진입해 주세요.')
+      return
+    }
+    setIsSubmitting(true)
     try {
-      window.sessionStorage.setItem(getDraftStorageKey(bookId, mode), JSON.stringify(people))
-      navigate(-1)
-    } catch {
-      setNotice('이 브라우저에서는 임시 저장을 사용할 수 없어요.')
+      const created = await createWikiDraft({
+        bookId,
+        mode,
+        position: toApiPosition(position, positionValue),
+        wikiId: location.state?.wikiId,
+        baseWikiVersion: location.state?.baseWikiVersion,
+      })
+      const draftId = created.data?.draftId ?? created.data?.id
+      if (!draftId || !created.etag) throw new Error('초안 정보를 확인할 수 없어요.')
+      let etag = created.etag
+
+      for (const person of people) {
+        let imageAssetId = person.imageAssetId ?? null
+        if (person.imageKey) {
+          const image = await getPersonImage(person.imageKey)
+          if (!image) throw new Error(`${person.name}의 이미지를 다시 선택해 주세요.`)
+          const uploaded = await uploadWikiDraftAsset({ draftId, file: image, etag })
+          etag = uploaded.etag
+          imageAssetId = uploaded.data?.assetId ?? uploaded.data?.id ?? null
+          if (!etag || !imageAssetId) throw new Error('이미지 업로드 결과를 확인할 수 없어요.')
+        }
+        const firstRevealAt = toApiPosition(person.firstRevealAt, positionValue)
+        const result = await createWikiCharacter({
+          draftId,
+          firstRevealAt,
+          etag,
+          profile: {
+            name: person.name.trim(),
+            gender: person.gender || null,
+            personality: person.personality || null,
+            role: person.role || null,
+            description: '',
+            imageAssetId,
+          },
+        })
+        etag = result.etag
+        if (!etag) throw new Error('초안 버전 정보를 확인할 수 없어요.')
+      }
+
+      await submitWikiDraft({
+        draftId,
+        etag,
+        idempotencyKey: window.crypto.randomUUID(),
+      })
+      const hasUnlinkedAffiliation = people.some(
+        (person) => person.affiliation && !person.organizationId,
+      )
+      setNotice(
+        hasUnlinkedAffiliation
+          ? '검수 제출이 완료됐어요. 소속은 단체 ID를 확인할 수 없어 포함되지 않았어요.'
+          : '검수 제출이 완료됐어요.',
+      )
+    } catch (error) {
+      setNotice(
+        error.response?.data?.message ||
+          error.message ||
+          '검수 제출에 실패했어요. 다시 시도해 주세요.',
+      )
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -430,15 +532,21 @@ const WikiRegisterPersonPage = () => {
               <div className="flex items-start gap-3">
                 <WikiCharacterImagePicker
                   imageUrl={activePerson.imageUrl}
-                  onFileSelected={(file) =>
-                    setPeople((items) =>
-                      items.map((item) =>
-                        item.id === activePerson.id
-                          ? { ...item, imageUrl: URL.createObjectURL(file) }
-                          : item,
-                      ),
-                    )
-                  }
+                  onFileSelected={async (file) => {
+                    const imageKey = `${getDraftStorageKey(bookId, mode)}:${activePerson.id}`
+                    try {
+                      await storePersonImage(imageKey, file)
+                      const imageUrl = URL.createObjectURL(file)
+                      previewUrls.current.add(imageUrl)
+                      setPeople((items) =>
+                        items.map((item) =>
+                          item.id === activePerson.id ? { ...item, imageKey, imageUrl } : item,
+                        ),
+                      )
+                    } catch (error) {
+                      setNotice(error.message || '이미지 임시 저장에 실패했어요.')
+                    }
+                  }}
                 />
                 <button
                   className="min-w-0 flex-1 text-left"
@@ -606,7 +714,8 @@ const WikiRegisterPersonPage = () => {
       <footer className="sticky bottom-0 z-10 mt-auto w-full bg-surface px-5 pt-[10px] pb-[14px]">
         <Button
           className="rounded-lg font-bold"
-          onClick={() => setNotice('검수 제출 API와 인증 연결이 필요해요.')}
+          disabled={isSubmitting}
+          onClick={submitForReview}
           text="검수 제출"
           height="46px"
           color="emphasis"

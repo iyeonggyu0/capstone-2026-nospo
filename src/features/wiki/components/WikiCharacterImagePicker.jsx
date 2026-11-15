@@ -13,6 +13,10 @@ export const WikiCharacterImagePicker = ({ imageUrl = '', onFileSelected, disabl
   const [isValidating, setIsValidating] = useState(false)
 
   useEffect(() => {
+    if (!localPreviewRef.current) setPreviewUrl(imageUrl)
+  }, [imageUrl])
+
+  useEffect(() => {
     return () => {
       if (localPreviewRef.current) URL.revokeObjectURL(localPreviewRef.current)
     }
