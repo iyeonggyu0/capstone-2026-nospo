@@ -16,7 +16,7 @@ const Divider = () => <hr className="h-px w-full border-0 bg-border" />
 const ReviewProgressSkeleton = () => (
   <div className="flex animate-pulse flex-col gap-4" role="status" aria-busy="true">
     <span className="sr-only">검수 진행 상황을 불러오는 중이에요.</span>
-    <div aria-hidden="true" className="h-[118px] rounded-xl bg-canvas" />
+    <div aria-hidden="true" className="h-29.5 rounded-xl bg-canvas" />
     <div aria-hidden="true" className="h-9 rounded-lg bg-canvas" />
     <div aria-hidden="true" className="h-56 rounded-lg bg-canvas" />
   </div>

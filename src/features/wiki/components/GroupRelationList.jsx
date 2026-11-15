@@ -1,3 +1,4 @@
+import { useDragReorder } from '../hooks/useDragReorder'
 import { GroupDragHandle } from './GroupDragHandle'
 import { GroupSearchBar } from './GroupSearchBar'
 import { GroupSummary } from './GroupSummary'
@@ -11,17 +12,37 @@ const RELATION_SECTIONS = [
 
 /**
  * 단체와 다른 단체의 관계를 우호, 대립, 중립으로 나누어 보여준다.
- * 항목이 있는 구역만 제목과 함께 보여주고, 관계가 하나도 없으면 빈 상태 문구를 표시한다.
+ * 보기 모드에서는 항목이 있는 구역만 제목과 함께 보여주고, 관계가 하나도 없으면 빈 상태 문구를 표시한다.
  * `editable`이면 `관계` 제목, 단체 검색 줄, 항목별 `삭제` 버튼이 나타난다(Figma 편집 상태).
+ * 편집 모드에서는 세 구역을 항상 보여 주어, 손잡이로 단체를 같은 구역 안에서 정렬하거나 다른 구역으로 옮길 수 있다.
  *
  * @param {object} props 컴포넌트 props
  * @param {{ friendly?: Array, hostile?: Array, neutral?: Array }} [props.relations={}] 관계별 단체 목록. 각 단체는 `{ id, name, scale, memberCount, imageUrl }`
  * @param {boolean} [props.editable=false] 편집 컨트롤 표시 여부
  * @param {(query: string) => void} [props.onAdd] 단체 검색 줄에서 `추가`를 눌렀을 때 실행. 없으면 비활성
  * @param {(id: string) => void} [props.onRemove] `삭제`를 눌렀을 때 실행
+ * @param {(id: string, toType: string, toIndex: number) => void} [props.onMove] 손잡이로 순서를 바꾸거나 다른 구역으로 옮겼을 때 실행. `toIndex`는 그 단체를 뺀 구역 기준 위치다.
  */
-export const GroupRelationList = ({ relations = {}, editable = false, onAdd, onRemove }) => {
-  const sections = RELATION_SECTIONS.filter((section) => relations[section.key]?.length > 0)
+export const GroupRelationList = ({
+  relations = {},
+  editable = false,
+  onAdd,
+  onRemove,
+  onMove,
+}) => {
+  const sections = editable
+    ? RELATION_SECTIONS
+    : RELATION_SECTIONS.filter((section) => relations[section.key]?.length > 0)
+  const { getItemProps, getListProps, getHandleProps } = useDragReorder({
+    lists: Object.fromEntries(
+      RELATION_SECTIONS.map((section) => [
+        section.key,
+        (relations[section.key] ?? []).map((group) => group.id),
+      ]),
+    ),
+    onMove: (id, toType, toIndex) => onMove?.(id, toType, toIndex),
+  })
+  const hasRelations = RELATION_SECTIONS.some((section) => relations[section.key]?.length > 0)
 
   return (
     <div className="flex flex-col gap-1.5 p-3">
@@ -33,47 +54,62 @@ export const GroupRelationList = ({ relations = {}, editable = false, onAdd, onR
           <GroupSearchBar label="단체 검색" onAdd={onAdd} />
         </>
       )}
-      {sections.length === 0 && (
+      {!hasRelations && !editable && (
         <p className="py-8 text-center text-body text-text-secondary">아직 등록된 관계가 없어요.</p>
       )}
-      {sections.map((section) => (
-        <section aria-labelledby={`group-relation-${section.key}`} key={section.key}>
-          <h3
-            className="mb-2 text-title-sm font-bold text-text-primary"
-            id={`group-relation-${section.key}`}
-          >
-            {section.title}
-          </h3>
-          <ul>
-            {relations[section.key].map((group) => (
-              <li
-                className={`flex items-center gap-3.5 border-l p-3 ${section.borderClass}`}
-                key={group.id}
-              >
-                {editable && <GroupDragHandle />}
-                <GroupSummary
-                  className="min-w-0 flex-1"
-                  imageUrl={group.imageUrl}
-                  memberCount={group.memberCount}
-                  name={group.name}
-                  scale={group.scale}
-                  size="small"
-                />
-                {editable && onRemove && (
-                  <button
-                    aria-label={`${group.name} 삭제`}
-                    className="-mr-1 min-h-11 shrink-0 px-1 text-label font-medium text-red-destructive"
-                    onClick={() => onRemove(group.id)}
-                    type="button"
+      {sections.map((section) => {
+        const { ref: listRef, className: listClassName } = getListProps(section.key)
+
+        return (
+          <section aria-labelledby={`group-relation-${section.key}`} key={section.key}>
+            <h3
+              className="mb-2 text-title-sm font-bold text-text-primary"
+              id={`group-relation-${section.key}`}
+            >
+              {section.title}
+            </h3>
+            <ul className={editable ? listClassName : undefined} ref={listRef}>
+              {(relations[section.key] ?? []).map((group) => {
+                const { className, ...itemProps } = getItemProps(group.id, section.key)
+
+                return (
+                  <li
+                    className={`flex items-center gap-3.5 border-l p-3 ${section.borderClass} ${className}`}
+                    key={group.id}
+                    {...itemProps}
                   >
-                    삭제
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+                    {editable && (
+                      <GroupDragHandle
+                        disabled={!onMove}
+                        label={`${group.name} 순서 바꾸기`}
+                        {...getHandleProps(group.id, section.key)}
+                      />
+                    )}
+                    <GroupSummary
+                      className="min-w-0 flex-1"
+                      imageUrl={group.imageUrl}
+                      memberCount={group.memberCount}
+                      name={group.name}
+                      scale={group.scale}
+                      size="small"
+                    />
+                    {editable && onRemove && (
+                      <button
+                        aria-label={`${group.name} 삭제`}
+                        className="-mr-1 min-h-11 shrink-0 px-1 text-label font-medium text-red-destructive"
+                        onClick={() => onRemove(group.id)}
+                        type="button"
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )
+      })}
     </div>
   )
 }

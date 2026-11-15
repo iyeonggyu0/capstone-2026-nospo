@@ -10,7 +10,7 @@ import { GroupDetailScreen } from './GroupDetailScreen'
  *
  * @param {object} props 컴포넌트 props
  * @param {string | null} [props.groupId] 보여줄 단체 식별자
- * @param {string | null} [props.mode] `edit`이면 편집 모드, 그 외는 보기 모드
+ * @param {string | null} [props.mode] `view`이면 보기 모드, 그 외(생략 포함)는 편집 모드
  */
 export const GroupDetailContainer = ({ groupId, mode }) => {
   // 선택 함수가 매번 새 객체를 돌려주면 화면이 끝없이 다시 그려지므로, 이미 있는 값(단체 객체, 키 문자열)만 각각 고른다.
@@ -39,7 +39,7 @@ export const GroupDetailContainer = ({ groupId, mode }) => {
       group={group}
       isSubmitting={!isDraft && submit.isPending}
       maxEpisode={book?.currentEpisode}
-      mode={mode === 'edit' ? 'edit' : 'view'}
+      mode={mode === 'view' ? 'view' : 'edit'}
       onRetry={() => query.refetch()}
       onSubmit={
         isDraft

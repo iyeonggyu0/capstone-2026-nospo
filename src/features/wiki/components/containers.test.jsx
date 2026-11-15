@@ -95,13 +95,24 @@ describe('GroupDetailContainer', () => {
     expect(html).toContain('단체 정보를 불러오는 중이에요.')
   })
 
-  it('보기 모드에서는 단체 정보와 현재 진도를 보여주고 편집 컨트롤은 숨긴다', async () => {
-    const html = await renderContainer(<GroupDetailContainer groupId="g1" />, prefetchDetail('g1'))
+  it('mode=view로 열면 단체 정보와 현재 진도를 보여주고 편집 컨트롤은 숨긴다', async () => {
+    const html = await renderContainer(
+      <GroupDetailContainer groupId="g1" mode="view" />,
+      prefetchDetail('g1'),
+    )
 
     expect(html).toContain('그리핀도르')
     expect(html).toContain('32화 수정')
     expect(html).toContain('서하준')
     expect(html).not.toContain('검수 제출')
+  })
+
+  it('mode가 없어도 편집 모드로 열려 검색 줄, 삭제, 검수 제출이 보인다', async () => {
+    const html = await renderContainer(<GroupDetailContainer groupId="g1" />, prefetchDetail('g1'))
+
+    expect(html).toContain('인물 검색')
+    expect(html).toContain('서하준 삭제')
+    expect(html).toContain('검수 제출')
   })
 
   it('편집 모드에서는 검색 줄과 검수 제출 영역을 보여준다', async () => {

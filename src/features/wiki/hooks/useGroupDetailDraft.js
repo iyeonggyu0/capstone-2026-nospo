@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { insertMilestoneLatest, moveItem, moveRelationItem, sortMilestonesLatest } from '../utils'
 
 /** 두 값의 내용이 같은지 비교한다. 변경 여부 판단에 쓴다. */
 const isSameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b)
@@ -21,6 +22,9 @@ const isSameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b)
  *   addMilestone: (input: { content: string, unlockEpisode: number }) => void,
  *   updateMilestone: (id: string, input: { content: string, unlockEpisode: number }) => void,
  *   removeMilestone: (id: string) => void,
+ *   moveMember: (id: string, toIndex: number) => void,
+ *   moveRelation: (id: string, toType: string, toIndex: number) => void,
+ *   moveMilestone: (id: string, toIndex: number) => void,
  *   reset: () => void,
  *   markSaved: () => void,
  * }} 현재 초안과 조작 함수
@@ -29,7 +33,7 @@ export const useGroupDetailDraft = (group) => {
   const [initial, setInitial] = useState(() => ({
     members: group?.members ?? [],
     relations: group?.relations ?? {},
-    milestones: group?.milestones ?? [],
+    milestones: sortMilestonesLatest(group?.milestones ?? []),
   }))
   const [members, setMembers] = useState(initial.members)
   const [relations, setRelations] = useState(initial.relations)
@@ -85,7 +89,22 @@ export const useGroupDetailDraft = (group) => {
     )
   }
 
-  /** 새 주요 행적을 목록 끝에 추가한다. */
+  /** 구성원 하나를 목록의 새 위치로 옮긴다. `toIndex`는 그 구성원을 뺀 목록 기준이다. */
+  const moveMember = (id, toIndex) => {
+    setMembers((previous) => moveItem(previous, id, toIndex))
+  }
+
+  /** 관계 단체 하나를 같은 구역이나 다른 구역(우호·대립·중립)의 새 위치로 옮긴다. */
+  const moveRelation = (id, toType, toIndex) => {
+    setRelations((previous) => moveRelationItem(previous, id, toType, toIndex))
+  }
+
+  /** 주요 행적 하나를 목록의 새 위치로 옮긴다. */
+  const moveMilestone = (id, toIndex) => {
+    setMilestones((previous) => moveItem(previous, id, toIndex))
+  }
+
+  /** 새 주요 행적을 해금 시점 순서에 맞는 위치에 추가한다. 직접 바꾼 기존 순서는 유지한다. */
   const addMilestone = ({ content, unlockEpisode }) => {
     lastDraftNumber.current += 1
     const milestone = {
@@ -95,7 +114,7 @@ export const useGroupDetailDraft = (group) => {
       isDraft: true,
     }
 
-    setMilestones((previous) => [...previous, milestone])
+    setMilestones((previous) => insertMilestoneLatest(previous, milestone))
   }
 
   /** 기존 주요 행적의 내용과 등장 회차를 고친다. 서버가 준 해금 문구는 새 값으로 대체한다. */
@@ -146,6 +165,9 @@ export const useGroupDetailDraft = (group) => {
     addMilestone,
     updateMilestone,
     removeMilestone,
+    moveMember,
+    moveRelation,
+    moveMilestone,
     reset,
     markSaved,
   }
