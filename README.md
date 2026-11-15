@@ -50,6 +50,51 @@ src/
 - 두 개 이상의 feature에서 쓰는 코드는 `components`, `hooks`, `lib`, `constants`로 이동한다. 공통 레이어는 feature를 import하지 않는다.
 - URL 문자열은 `src/constants/routes.js`에서 한 번만 정의하고, `src/routes`에서는 lazy loading을 적용한다.
 
+## 공통 레이아웃 · 헤더 · 푸터
+
+`RootLayout`은 모든 라우트를 `MainLayout`으로 감싼다. `MainLayout` 안에서는 헤더와 페이지 콘텐츠가 함께 스크롤되고, 푸터는 모바일 프레임의 하단에 고정된다. 데스크톱에서는 프레임 바깥 배경과 구분된 중앙 모바일 프리뷰로 표시된다.
+
+### 헤더 설정
+
+기본 화면 헤더 설정은 `src/components/layout/MainLayout.jsx`의 `getHeaderProps(pathname)`에서 관리한다. 새 주요 화면을 추가할 때는 여기에서 제목과 오른쪽 영역을 지정한다.
+
+```jsx
+if (pathname === ROUTES.EXAMPLE) {
+  return {
+    title: '예시',
+    rightContent: <button type="button">저장</button>,
+  }
+}
+```
+
+`Header`는 아래 props를 지원한다. 페이지별로 별도 레이아웃이 필요한 경우에만 직접 import해 사용한다.
+
+| Prop             | 용도                                        |
+| ---------------- | ------------------------------------------- |
+| `variant`        | `main`(기본), `back`, `context` 헤더 형태   |
+| `title`          | 화면 메인 제목. 없으면 NOSPO 로고를 표시    |
+| `subtitle`       | 제목 아래 보조 설명                         |
+| `showBackButton` | `true`면 뒤로가기 아이콘 표시               |
+| `onBack`         | 뒤로가기 버튼 동작                          |
+| `rightContent`   | 날짜, 버튼 등 오른쪽 영역에 넣을 React 노드 |
+
+현재 주요 화면의 기본값은 홈(제목 `홈` + 오늘 날짜), 위키(제목 `위키` + `신규 도서 추가`), 기록(제목 `기록` + `공유하기`), MY(제목 `MY`)다.
+
+### 푸터 설정
+
+`src/components/layout/BottomNavigation.jsx`의 `navigationItems`가 푸터의 항목과 이동 경로를 관리한다. 각 항목의 `to`에는 `ROUTES` 상수를 사용하고, `isActive`로 현재 경로의 강조 상태를 정의한다. 현재 활성 항목에는 진한 아이콘·텍스트와 `aria-current="page"`가 적용된다.
+
+```jsx
+{
+  label: '예시',
+  to: ROUTES.EXAMPLE,
+  icon: exampleIcon,
+  isActive: (path) => path.startsWith(ROUTES.EXAMPLE),
+}
+```
+
+새 탭 화면을 추가할 때는 `src/constants/routes.js`에 경로를 선언하고, `src/routes/router.jsx`에 페이지를 연결한 뒤 푸터 항목을 추가한다. 위키 탭의 목적지는 검색 화면이 아닌 `/wiki` 도서 목록 화면이며, 검색은 `/wiki/search/:searchType`에서 별도로 처리한다.
+
 ## 서버 상태와 전역 상태
 
 ```text
@@ -68,14 +113,18 @@ API 호출 함수 → TanStack Query hook → 화면 컴포넌트
 ```text
 /                           온보딩
 /home                       홈
+/reading                    읽기 기록
 /auth/login                 로그인
 /auth/signup                회원가입
+/wiki                       위키 도서 목록
 /wiki/search/:searchType    이름·저자·ISBN 검색
 /wiki/:wikiId               위키 상세
 /wiki/:wikiId/relations     관계도
 /wiki/register/*            위키 등록
 /wiki/reviews/*             신청 위키 검수
 /my                         마이 요약
+/my/profile                 내 정보 변경
+/my/password                비밀번호 변경
 ```
 
 ## API 환경 설정
@@ -97,6 +146,9 @@ VITE_API_PRODUCTION_URL=https://api.example.com
 ## 스타일·UI·접근성 규칙
 
 - Tailwind CSS와 기존 디자인 토큰을 우선 사용한다. 전역 색상·폰트·focus 스타일은 `src/index.css`에서 관리한다.
+- 텍스트는 `text-display`, `text-headline`, `text-title`, `text-body`, `text-label`, `text-caption` 등 `@theme`의 역할 기반 위계를 사용하고, `font-bold`·`font-medium`으로 강조도를 정한다.
+- 색상은 축약 팔레트만 기본으로 사용한다. `bg-canvas`, `bg-surface`, `border-border`, `text-text-primary`, `text-text-secondary`, `text-text-muted`와 역할별 `teal-*`, `blue-*`, `amber-*`, `red-*` 토큰을 우선한다.
+- 피그마에 유사한 색상이 여러 개 있어도 새 HEX나 임의 Tailwind 색상을 추가하지 않는다. 의미와 명도에 가장 가까운 축약 팔레트 토큰으로 매핑한다. 브랜드·일러스트·이미지 콘텐츠, 캘린더 상태처럼 표현 자체가 의미인 색만 원본 색상을 유지한다.
 - 모바일 높이는 `h-screen`보다 `min-h-dvh`를 우선하며, 화면 크기에 따라 달라지는 요소는 고정 폭보다 `w-full`, `max-w-*`, `clamp()`를 사용한다.
 - 공통 UI는 데이터나 정책을 소유하지 않는다. 필요한 값은 feature 또는 페이지가 props로 전달한다.
 - 페이지 이동에는 `Link`, 동작 실행에는 `button`을 사용한다. 아이콘 버튼에는 접근 가능한 이름을 제공하고, 현재 링크에는 `aria-current="page"`를 준다.
@@ -164,8 +216,6 @@ PR 리뷰 체크:
 ```text
 feat/login-page
 fix/auth-redirect
-design/home-banner
-refactor/api-client
 ```
 
 현재 GitHub 저장소에서는 브랜치 이름을 자동으로 강제하지 않는다. 팀원은 권장 형식을 따른다.
