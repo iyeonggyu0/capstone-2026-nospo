@@ -47,12 +47,16 @@ const getHeaderProps = (pathname) => {
 
 /** 헤더와 페이지 콘텐츠를 스크롤하고, 푸터는 프레임 하단에 고정한다. */
 export const MainLayout = () => {
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
+  const usePageHeader =
+    pathname.startsWith(ROUTES.WIKI_REVIEW_LIST) ||
+    pathname === ROUTES.MY_PROFILE ||
+    (pathname === ROUTES.MY && new URLSearchParams(search).get('view') === 'transactions')
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <main className="min-h-0 flex-1 overflow-y-auto bg-surface">
-        <Header {...getHeaderProps(pathname)} />
+        {!usePageHeader && <Header {...getHeaderProps(pathname)} />}
         <Outlet />
       </main>
       <BottomNavigation />
