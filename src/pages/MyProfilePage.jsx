@@ -42,7 +42,7 @@ const MyProfilePage = () => {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const profile = preview ? mockProfile : memberQuery.data
-  const emailChanged = email.trim().toLowerCase() !== profile?.email?.toLowerCase()
+  const emailChanged = email.trim().toLowerCase() !== (profile?.email ?? '').trim().toLowerCase()
   const emailLogin = preview || profile?.loginMethods?.includes('EMAIL')
   const myPath = `${ROUTES.MY}${preview ? '?preview' : ''}`
 
