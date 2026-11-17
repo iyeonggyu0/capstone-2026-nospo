@@ -342,7 +342,7 @@ const MyProfilePage = () => {
               <div className="flex items-center justify-between gap-3 text-body">
                 <span>비밀번호 수정</span>
                 <Link
-                  to={`${ROUTES.AUTH_PASSWORD_RESET}${preview ? '?preview' : ''}`}
+                  to={`${ROUTES.AUTH_PASSWORD_RESET}?from=profile${preview ? '&preview' : ''}`}
                   reloadDocument={preview}
                   className="text-label-sm font-medium text-teal-strong"
                 >
