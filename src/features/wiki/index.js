@@ -1,1 +1,1 @@
-export { getShelf } from './api'
+export { getShelf, getSearchHistory, searchBooks } from './api'
