@@ -291,11 +291,7 @@ const MyPage = () => {
         </>
       ) : (
         <>
-          <Link
-            to={`${ROUTES.MY_PROFILE}${preview ? '?preview' : ''}`}
-            aria-label="내 정보 보기"
-            className="flex items-center gap-3"
-          >
+          <div className="flex items-center gap-3">
             <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-subtle text-teal-strong">
               {profile?.profileImageUrl ? (
                 <img src={profile.profileImageUrl} alt="" className="size-full object-cover" />
@@ -320,15 +316,19 @@ const MyPage = () => {
                   </button>
                 </p>
               ) : (
-                <>
+                <Link
+                  to={`${ROUTES.MY_PROFILE}${preview ? '?preview' : ''}`}
+                  aria-label="내 정보 보기"
+                  className="block"
+                >
                   <p className="truncate text-title font-bold">{profile?.nickname ?? '회원'}</p>
                   <p className="truncate text-caption text-text-secondary">
                     {maskEmail(profile?.email)}
                   </p>
-                </>
+                </Link>
               )}
             </div>
-          </Link>
+          </div>
           <section
             className="flex items-center justify-between gap-3 rounded-xl bg-teal-subtle p-4"
             aria-label="보유 AI 토큰"
