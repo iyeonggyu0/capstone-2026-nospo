@@ -17,7 +17,7 @@ const navigationItems = [
     label: '위키',
     to: ROUTES.WIKI,
     icon: wikiIcon,
-    isActive: (path) => path.startsWith('/wiki'),
+    isActive: (path) => path.startsWith('/wiki') && !path.startsWith(ROUTES.WIKI_REVIEW_LIST),
     activeIconClass: 'brightness-[0.15]',
   },
   {
@@ -31,7 +31,7 @@ const navigationItems = [
     label: 'MY',
     to: ROUTES.MY,
     icon: myIcon,
-    isActive: (path) => path.startsWith(ROUTES.MY),
+    isActive: (path) => path.startsWith(ROUTES.MY) || path.startsWith(ROUTES.WIKI_REVIEW_LIST),
     activeIconClass: 'brightness-[0.15]',
   },
 ]
