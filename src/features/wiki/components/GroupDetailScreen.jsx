@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Badge, Button, DetailTabs } from '@/components/common-ui'
 import { SCREEN_MIN_HEIGHT_CLASS } from '../constants'
 import { useGroupDetailDraft } from '../hooks/useGroupDetailDraft'
+import { getMemberCandidates } from '../utils'
+import { GroupHeader } from './GroupHeader'
 import { GroupMemberList } from './GroupMemberList'
 import { GroupMilestoneList } from './GroupMilestoneList'
 import { GroupRelationList } from './GroupRelationList'
@@ -49,6 +51,22 @@ const GroupDetailError = ({ onRetry }) => (
   </div>
 )
 
+/** 단체를 찾을 수 없을 때 안내하고, 이전 화면으로 돌아갈 수 있는 버튼을 함께 보여준다. */
+const GroupNotFound = ({ onBack }) => (
+  <div className="flex flex-col items-center gap-3 py-10 text-center">
+    <p className="text-body text-text-secondary">단체를 찾을 수 없어요.</p>
+    {onBack && (
+      <Button
+        className="max-w-40"
+        color="secondary"
+        height="38px"
+        onClick={onBack}
+        text="돌아가기"
+      />
+    )}
+  </div>
+)
+
 /**
  * 단체 정보가 준비되었을 때의 본문이다. 요약, 탭, 탭별 내용을 보여주고
  * 편집 모드에서는 초안을 관리하며 하단 검수 제출 영역을 함께 보여준다.
@@ -59,16 +77,33 @@ const GroupDetailContent = ({
   mode,
   maxEpisode,
   episodeUnit,
+  memberCandidates,
   onAddMember,
   onAddRelation,
   onSubmit,
+  canSubmitUnchanged,
   isSubmitting,
   submitError,
+  saveDraftError,
   onSaveDraft,
+  onBack,
 }) => {
   const [tab, setTab] = useState('members')
   const draft = useGroupDetailDraft(group)
   const isEdit = mode === 'edit'
+
+  /**
+   * 지금 편집한 구성원·관계·주요 행적을 임시 저장하도록 부모에게 넘긴다.
+   * 저장에 성공하면 지금 내용을 새 기준으로 삼아, 이어서 `저장 안함`을 눌러도 방금 저장한 내용은 남는다.
+   */
+  const handleSaveDraft = () => {
+    const saved = onSaveDraft({
+      members: draft.members,
+      relations: draft.relations,
+      milestones: draft.milestones,
+    })
+    if (saved !== false) draft.markSaved()
+  }
 
   /** 편집한 내용을 제출하고, 성공하면 그 내용을 새 기준으로 삼는다. 실패하면 편집 내용을 그대로 둔다. */
   const handleSubmit = async () => {
@@ -88,6 +123,7 @@ const GroupDetailContent = ({
 
   return (
     <div className={`flex flex-col ${SCREEN_MIN_HEIGHT_CLASS}`}>
+      <GroupHeader currentEpisode={maxEpisode} episodeUnit={episodeUnit} onBack={onBack} />
       <section
         className="flex flex-1 flex-col gap-3 px-5 pt-3 pb-6"
         aria-labelledby="group-detail-title"
@@ -103,6 +139,7 @@ const GroupDetailContent = ({
         <DetailTabs onChange={setTab} options={TAB_OPTIONS} value={tab} />
         {tab === 'members' && (
           <GroupMemberList
+            candidates={getMemberCandidates(memberCandidates, draft.members, maxEpisode)}
             editable={isEdit}
             episodeUnit={episodeUnit}
             members={draft.members}
@@ -138,8 +175,9 @@ const GroupDetailContent = ({
           errorMessage={submitError}
           isSubmitting={isSubmitting}
           onDiscard={draft.reset}
-          onSaveDraft={onSaveDraft}
-          onSubmit={onSubmit && draft.hasChanges ? handleSubmit : undefined}
+          onSaveDraft={onSaveDraft ? handleSaveDraft : undefined}
+          saveDraftError={saveDraftError}
+          onSubmit={onSubmit && (draft.hasChanges || canSubmitUnchanged) ? handleSubmit : undefined}
         />
       )}
     </div>
@@ -159,12 +197,16 @@ const GroupDetailContent = ({
  * @param {string} [props.episodeUnit='화'] 진도 단위
  * @param {'ready' | 'loading' | 'error'} [props.status='ready'] 화면 상태
  * @param {() => void} [props.onRetry] 오류 상태에서 `다시 시도`를 눌렀을 때 실행
- * @param {(query: string) => void} [props.onAddMember] 구성원 검색 줄에서 `추가`를 눌렀을 때 실행. 없으면 입력한 이름으로 구성원을 추가한다
+ * @param {Array<{ id: string, name: string, unlockEpisode?: number }>} [props.memberCandidates] 구성원으로 고를 수 있는 인물 목록. 이미 구성원인 인물은 화면에서 제외한다.
+ * @param {(person: { id: string, name: string, unlockEpisode?: number }) => void} [props.onAddMember] 구성원 검색 줄에서 고른 인물을 `추가`했을 때 실행. 없으면 그 인물을 구성원 끝에 추가한다
  * @param {(query: string) => void} [props.onAddRelation] 관계 단체 검색 줄에서 `추가`를 눌렀을 때 실행. 없으면 입력한 이름으로 `우호` 관계를 추가한다
  * @param {(draft: { members: Array, relations: object, milestones: Array }) => void} [props.onSubmit] `검수 제출`을 눌렀을 때 편집한 내용과 함께 실행. 없으면 비활성
+ * @param {boolean} [props.canSubmitUnchanged=false] 편집한 내용이 없어도 `검수 제출`을 누를 수 있게 할지 여부. 새로 추가한 단체처럼 단체 자체가 제출 대상일 때 쓴다.
  * @param {boolean} [props.isSubmitting=false] 제출 요청 중인지 여부
  * @param {string} [props.submitError] 제출 실패 안내 문구
- * @param {() => void} [props.onSaveDraft] `임시 저장`을 눌렀을 때 실행. 없으면 비활성
+ * @param {string} [props.saveDraftError] 임시 저장 실패 안내 문구. 있으면 `임시 저장` 버튼이 다시 시도 문구로 바뀐다.
+ * @param {(draft: { members: Array, relations: object, milestones: Array }) => boolean | void} [props.onSaveDraft] `임시 저장`을 눌렀을 때 편집한 내용과 함께 실행. 없으면 비활성. 저장에 실패했으면 `false`를 돌려준다.
+ * @param {() => void} [props.onBack] 헤더의 뒤로가기와 단체 없음 화면의 `돌아가기`를 눌렀을 때 실행. 이동은 부모(페이지)가 처리한다. 없으면 뒤로가기 화살표와 `돌아가기` 버튼을 보여주지 않는다.
  */
 export const GroupDetailScreen = ({
   group,
@@ -172,42 +214,51 @@ export const GroupDetailScreen = ({
   mode = 'view',
   maxEpisode,
   episodeUnit = '화',
+  memberCandidates = [],
   status = 'ready',
   onRetry,
   onAddMember,
   onAddRelation,
   onSubmit,
+  canSubmitUnchanged = false,
   isSubmitting = false,
   submitError,
+  saveDraftError,
   onSaveDraft,
+  onBack,
 }) => {
   if (status === 'ready' && group) {
     return (
       <GroupDetailContent
+        canSubmitUnchanged={canSubmitUnchanged}
         episodeUnit={episodeUnit}
         group={group}
         isSubmitting={isSubmitting}
         key={group.id ?? group.name}
         maxEpisode={maxEpisode}
+        memberCandidates={memberCandidates}
         mode={mode}
         onAddMember={onAddMember}
         onAddRelation={onAddRelation}
+        onBack={onBack}
         onSaveDraft={onSaveDraft}
         onSubmit={onSubmit}
         progressLabel={progressLabel}
+        saveDraftError={saveDraftError}
         submitError={submitError}
       />
     )
   }
 
   return (
-    <section className="flex flex-col gap-3 px-5 pt-3 pb-6" aria-labelledby="group-detail-title">
-      <GroupDetailHeader progressLabel={progressLabel} />
-      {status === 'loading' && <GroupDetailSkeleton />}
-      {status === 'error' && <GroupDetailError onRetry={onRetry} />}
-      {status === 'ready' && (
-        <p className="py-10 text-center text-body text-text-secondary">단체를 찾을 수 없어요.</p>
-      )}
-    </section>
+    <>
+      <GroupHeader currentEpisode={maxEpisode} episodeUnit={episodeUnit} onBack={onBack} />
+      <section className="flex flex-col gap-3 px-5 pt-3 pb-6" aria-labelledby="group-detail-title">
+        <GroupDetailHeader progressLabel={progressLabel} />
+        {status === 'loading' && <GroupDetailSkeleton />}
+        {status === 'error' && <GroupDetailError onRetry={onRetry} />}
+        {status === 'ready' && <GroupNotFound onBack={onBack} />}
+      </section>
+    </>
   )
 }

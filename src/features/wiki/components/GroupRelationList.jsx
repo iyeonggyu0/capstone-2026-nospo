@@ -96,7 +96,7 @@ export const GroupRelationList = ({
                     {editable && onRemove && (
                       <button
                         aria-label={`${group.name} 삭제`}
-                        className="-mr-1 min-h-11 shrink-0 px-1 text-label font-medium text-red-destructive"
+                        className="-mr-1 min-h-11 min-w-9 shrink-0 px-1 text-label font-medium text-red-destructive"
                         onClick={() => onRemove(group.id)}
                         type="button"
                       >

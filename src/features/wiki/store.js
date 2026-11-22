@@ -23,7 +23,7 @@ export const findDraftGroup = (drafts, groupId) => {
 }
 
 /**
- * 단체 목록 화면에서 추가·삭제한 초안을 판본별로 보관한다.
+ * 단체 목록 화면에서 추가·삭제한 초안을 판본별로 보관하고, 서버에 있는 단체의 상세 임시 저장도 함께 보관한다.
  * 다른 화면에 갔다가 돌아오거나 새로고침해도 유지되도록 `sessionStorage`에 함께 저장하며, 탭을 닫으면 사라진다.
  * 서버에 제출하기 전의 임시 값이라 탭을 닫은 뒤까지 남기지 않는다. 저장소를 쓸 수 없는 환경에서는 메모리에서만 동작한다.
  */
@@ -31,6 +31,13 @@ export const useGroupDraftStore = create(
   persist(
     (set) => ({
       drafts: {},
+      /** 판본별로 마지막에 `임시 저장`한 목록 초안이다. `저장 안함`을 누르면 이 상태로 되돌린다. */
+      savedDrafts: {},
+      /**
+       * 서버에 있는 단체의 상세 편집을 임시 저장한 내용이다. 단체 식별자별로 구성원·관계·주요 행적의 **편집한 부분만** 보관한다.
+       * 서버 데이터를 복사해 두지 않으며, 서버 상세 위에 적용하는 방법은 `utils.js`의 `applyDetailEdit`을 따른다.
+       */
+      detailDrafts: {},
       lastDraftNumber: 0,
 
       /** 이름과 등장 회차로 초안 단체를 해당 판본 목록 끝에 추가한다. */
@@ -97,14 +104,48 @@ export const useGroupDraftStore = create(
           }
         }),
 
-      /** 해당 판본의 추가·삭제 내용을 모두 버린다. */
+      /** 서버에 있는 단체의 상세 편집분(`toDetailEdit`의 결과)을 임시 저장한다. 다시 열면 서버 상세 위에 적용해 이어서 편집한다. */
+      saveDetailDraft: (groupId, { members, relations, milestones }) =>
+        set((state) => ({
+          detailDrafts: { ...state.detailDrafts, [groupId]: { members, relations, milestones } },
+        })),
+
+      /** 서버에 있는 단체의 임시 저장 내용을 지운다. 제출에 성공했을 때 쓴다. */
+      clearDetailDraft: (groupId) =>
+        set((state) => ({
+          detailDrafts: Object.fromEntries(
+            Object.entries(state.detailDrafts).filter(([id]) => id !== groupId),
+          ),
+        })),
+
+      /** 해당 판본의 지금 목록 초안을 `임시 저장` 상태로 기억해 둔다. */
+      saveDraftSnapshot: (key) =>
+        set((state) => ({
+          savedDrafts: { ...state.savedDrafts, [key]: state.drafts[key] ?? EMPTY_GROUP_DRAFT },
+        })),
+
+      /** 해당 판본의 목록 초안을 마지막 `임시 저장` 상태로 되돌린다. 임시 저장한 적이 없으면 비운다. */
+      restoreDraftSnapshot: (key) =>
+        set((state) => ({
+          drafts: { ...state.drafts, [key]: state.savedDrafts[key] ?? EMPTY_GROUP_DRAFT },
+        })),
+
+      /** 해당 판본의 추가·삭제 내용과 임시 저장 상태를 모두 버린다. 검수 제출에 성공했을 때 쓴다. */
       resetDraft: (key) =>
-        set((state) => ({ drafts: { ...state.drafts, [key]: EMPTY_GROUP_DRAFT } })),
+        set((state) => ({
+          drafts: { ...state.drafts, [key]: EMPTY_GROUP_DRAFT },
+          savedDrafts: { ...state.savedDrafts, [key]: EMPTY_GROUP_DRAFT },
+        })),
     }),
     {
       name: DRAFT_STORAGE_NAME,
       storage: createJSONStorage(() => sessionStorage),
-      partialize: ({ drafts, lastDraftNumber }) => ({ drafts, lastDraftNumber }),
+      partialize: ({ drafts, savedDrafts, detailDrafts, lastDraftNumber }) => ({
+        drafts,
+        savedDrafts,
+        detailDrafts,
+        lastDraftNumber,
+      }),
     },
   ),
 )

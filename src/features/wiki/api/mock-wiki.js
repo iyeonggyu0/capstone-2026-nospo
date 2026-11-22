@@ -1,7 +1,4 @@
-import bookCover from '@/assets/images/wiki/book-cover.png'
-
 // 개발용 메모리 모의 응답: 서버나 실제 데이터를 변경하지 않는다.
-// 이 파일은 개발 모드에서만 불러오므로, 아래 샘플 이미지(Figma 시안 이미지)는 배포 결과물에 포함되지 않는다.
 // 제출 요청에 '실패'라는 글자가 들어 있으면 서버 오류를 흉내 내서, 실패해도 입력이 유지되는지 시험할 수 있다.
 /** 서버 응답을 기다리는 느낌을 내기 위한 모의 지연 시간(ms)이다. 테스트에서는 기다리지 않는다. */
 const WAIT_MS = 400
@@ -11,39 +8,23 @@ const book = {
   title: '애주가의 절주 일기',
   progressLabel: '32화까지 읽음',
   statusLabel: '스포일러 보호 중',
-  coverImageSrc: bookCover,
   editLabel: '32화 수정',
   currentEpisode: 32,
   episodeUnit: '화',
 }
 
-/** 모의 단체 목록이다. 단체 이름은 모두 예시이며, 목록은 샘플 하나만 둔다. */
-const groups = [{ id: 'g1', name: '그리핀도르', scale: '중', memberCount: 12 }]
+/** 모의 단체 목록이다. 미리 만들어 둔 단체 없이 비어 있으며, 단체는 화면에서 직접 추가한다. */
+const groups = []
 
-/** 모의 인물 더미 목록이다. 인물 수는 이 목록의 길이로 정하며, 이름은 모두 예시다. */
+/** 모의 인물 목록이다. 인물 수는 이 목록의 길이로 정하며, 단체 구성원은 여기서 골라 추가한다. 이름은 모두 예시다. */
 const persons = [
-  { id: 'p1', name: '서하준' },
-  { id: 'p2', name: '김민솔' },
-  { id: 'p3', name: '구교승' },
+  { id: 'p1', name: '서하준', unlockEpisode: 1 },
+  { id: 'p2', name: '김민솔', unlockEpisode: 3 },
+  { id: 'p3', name: '구교승', unlockEpisode: 7 },
 ]
 
-/** 단체 식별자별 모의 상세 정보(구성원·관계·주요 행적)다. */
-const details = {
-  g1: {
-    members: [
-      { id: 'p1', name: '서하준', unlockEpisode: 1 },
-      { id: 'p2', name: '김민솔', unlockEpisode: 3 },
-      { id: 'p3', name: '구교승', unlockEpisode: 7 },
-    ],
-    relations: {},
-    milestones: [
-      { id: 'm1', content: '폭풍을 피해 새로운 항로를 제안', unlockEpisode: 12 },
-      { id: 'm2', content: '선원들을 설득해 항해를 이어감', unlockEpisode: 10 },
-      { id: 'm3', content: '낡은 지도를 발견', unlockEpisode: 7 },
-      { id: 'm4', content: '첫 출항', unlockEpisode: 4 },
-    ],
-  },
-}
+/** 단체 식별자별 모의 상세 정보(구성원·관계·주요 행적)다. 미리 채워 둔 구성원 없이 비어 있다. */
+const details = {}
 
 // 검수 진행 상황 샘플: r1은 Figma 시안(관리자 검토 대기), r2·r3은 단계별 모양을 확인하기 위한 개발용 값이다.
 /** 검수 신청 식별자별 모의 데이터다. r1은 시안 그대로이고 r2(반려)·r3(승인)는 단계별 모양 확인용이다. */
@@ -88,12 +69,19 @@ const buildDetail = (group) => {
 const acceptProposal = (data) => {
   failIfRequested(data)
   lastProposalNumber += 1
+  const proposalId = `proposal-${lastProposalNumber}`
+  // 제출한 건의 검수 진행 화면을 열 수 있도록 같은 식별자로 검수 신청을 만들어 둔다.
+  reviews[proposalId] = {
+    id: proposalId,
+    status: 'PENDING_REVIEW',
+    submittedAt: new Date().toISOString(),
+  }
 
-  return { proposalId: `proposal-${lastProposalNumber}`, status: 'PENDING_REVIEW' }
+  return { proposalId, status: 'PENDING_REVIEW' }
 }
 
-/** 개발 중 API 요청을 받아 모의 응답을 돌려준다. 실제 API와 같은 `(method, path, data)` 모양이다. */
-export const request = async (method, path, data) => {
+/** 개발 중 API 요청을 받아 모의 응답을 돌려준다. 실제 API와 같은 `(method, path, data, config)` 모양이다. */
+export const request = async (method, path, data, config = {}) => {
   await wait()
 
   if (method === 'get' && path === '/wiki/groups') {
@@ -105,6 +93,17 @@ export const request = async (method, path, data) => {
         name,
         memberCount,
       })),
+    }
+  }
+
+  if (method === 'get' && path === '/wiki/persons') {
+    // 실제 서버처럼 현재 진도(positionValue)보다 뒤에 등장하는 인물은 보내지 않는다.
+    const positionValue = Number(config.params?.positionValue)
+
+    return {
+      items: Number.isFinite(positionValue)
+        ? persons.filter((person) => person.unlockEpisode <= positionValue)
+        : persons,
     }
   }
 
@@ -130,7 +129,6 @@ export const request = async (method, path, data) => {
       ...review,
       book: {
         title: book.title,
-        coverImageSrc: book.coverImageSrc,
         reflectedEpisode: book.currentEpisode,
         episodeUnit: book.episodeUnit,
       },

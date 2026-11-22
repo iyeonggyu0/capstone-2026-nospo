@@ -132,15 +132,132 @@ export const getReflectedLabel = ({ reflectedEpisode, episodeUnit = '화' } = {}
   reflectedEpisode != null ? `${reflectedEpisode}${episodeUnit}까지 반영` : undefined
 
 /**
- * 인물 등록 화면으로 이동하는 주소를 만든다. 판본 식별자가 있으면 쿼리로 함께 넘긴다.
+ * 인물 등록 화면으로 이동하는 주소를 만든다. 도서 식별자가 있으면 인물 화면이 읽는 이름(`bookId`)의 쿼리로 함께 넘긴다.
  *
- * @param {string | null} [editionId] 현재 보고 있는 도서 판본 식별자
- * @returns {string} 예: `/wiki/register/person?editionId=e1`
+ * @param {string | null} [bookId] 현재 보고 있는 도서 식별자
+ * @returns {string} 예: `/wiki/register/person?bookId=b1`
  */
-export const getPersonRegisterPath = (editionId) =>
-  editionId
-    ? `${ROUTES.WIKI_REGISTER_PERSON}?${new URLSearchParams({ editionId })}`
+export const getPersonRegisterPath = (bookId) =>
+  bookId
+    ? `${ROUTES.WIKI_REGISTER_PERSON}?${new URLSearchParams({ bookId })}`
     : ROUTES.WIKI_REGISTER_PERSON
+
+/** 위키 작성 방식이다. `CREATE`는 새 위키 만들기, `UPDATE`는 기존 위키 고치기다. */
+const WIKI_MODES = ['CREATE', 'UPDATE']
+
+/**
+ * 진도 값에서 읽은 회차 숫자를 꺼낸다. 숫자면 그대로, `{ value }` 같은 객체면 그 안의 값을 돌려준다.
+ *
+ * @param {number | { value?: number, positionValue?: number } | null} [position] 진도
+ * @returns {number | undefined} 읽은 회차. 알 수 없으면 undefined
+ */
+export const getPositionValue = (position) => {
+  const value =
+    position && typeof position === 'object'
+      ? Number(position.value ?? position.positionValue)
+      : Number(position)
+
+  return Number.isFinite(value) && value > 0 ? value : undefined
+}
+
+/**
+ * 화면 이동 때 넘긴 값(`location.state`)과 주소 쿼리에서 도서·진도·작성 방식을 읽는다.
+ * 인물 등록 화면과 같은 이름(`bookId`, `position`, `mode`, `book`)을 쓰고, 이동 값이 쿼리보다 우선한다.
+ * 예전 쿼리 이름 `editionId`도 도서 식별자로 받아 준다. 쿼리의 `mode`는 `CREATE`·`UPDATE`만 작성 방식으로 보고, `view`·`edit`는 화면 모드라 무시한다.
+ *
+ * @param {object} [input] 입력
+ * @param {{ bookId?: string, position?: number | object, mode?: string, book?: object } | null} [input.state] `location.state`
+ * @param {URLSearchParams} [input.searchParams] 주소 쿼리
+ * @returns {{ bookId: string | null, position?: number | object, wikiMode?: 'CREATE' | 'UPDATE', book?: object }} 읽은 값
+ */
+export const readWikiContext = ({ state, searchParams } = {}) => {
+  const queryMode = searchParams?.get('mode')?.toUpperCase()
+  const wikiMode = [state?.mode, queryMode].find((mode) => WIKI_MODES.includes(mode))
+
+  return {
+    bookId: state?.bookId ?? searchParams?.get('bookId') ?? searchParams?.get('editionId') ?? null,
+    position: state?.position ?? getPositionValue(searchParams?.get('position')),
+    wikiMode,
+    book: state?.book,
+  }
+}
+
+/**
+ * 읽은 도서·진도·작성 방식을 다른 화면(인물 등록, 단체 상세)으로 이동할 때 넘길 `state`로 바꾼다. 값이 없는 항목은 빼며, 이름은 인물 등록 화면이 읽는 것과 같다.
+ *
+ * @param {{ bookId?: string | null, position?: number | object, wikiMode?: string, book?: object }} [context] `readWikiContext`가 읽은 값
+ * @returns {{ mode?: string, book?: object, bookId?: string, position?: number | object }} 이동 `state`
+ */
+export const toWikiNavigationState = ({ bookId, position, wikiMode, book } = {}) =>
+  Object.fromEntries(
+    Object.entries({ mode: wikiMode, book, bookId, position }).filter(([, value]) => value != null),
+  )
+
+/**
+ * 이동 때 넘어온 진도가 있으면, 서버가 준 도서 정보의 현재 진도와 안내 문구를 그 진도로 바꾼다.
+ * 서버가 준 문구는 서버의 진도 기준이라, 사용자가 정한 진도와 어긋나지 않게 같은 값으로 다시 만든다.
+ *
+ * @param {{ episodeUnit?: string } | undefined} book 서버가 준 도서 정보
+ * @param {{ position?: number | object, wikiMode?: string }} [context] 읽은 진도와 작성 방식
+ * @returns {object | undefined} 진도를 반영한 도서 정보. 진도가 없으면 받은 도서 정보 그대로
+ */
+export const applyWikiContext = (book, { position, wikiMode } = {}) => {
+  const value = getPositionValue(position)
+  if (!book || value == null) return book
+
+  const unit = book.episodeUnit ?? '화'
+  const label =
+    position?.volume && position?.chapter
+      ? `${position.volume}권 ${position.chapter}장`
+      : `${value}${unit}`
+
+  return {
+    ...book,
+    currentEpisode: value,
+    progressLabel: `${label}까지 읽음`,
+    editLabel: `${label} ${wikiMode === 'CREATE' ? '등록' : '수정'}`,
+  }
+}
+
+/**
+ * 검수 진행 화면으로 이동하는 주소를 만든다. 신청 식별자가 없으면 검수 목록 주소를 돌려준다.
+ *
+ * @param {string | null} [reviewId] 검수 신청 식별자
+ * @returns {string} 예: `/wiki/reviews/r1`
+ */
+export const getReviewProgressPath = (reviewId) =>
+  reviewId
+    ? ROUTES.WIKI_REVIEW_PROGRESS.replace(':reviewId', encodeURIComponent(reviewId))
+    : ROUTES.WIKI_REVIEW_LIST
+
+/**
+ * 인물 목록에서 구성원으로 추가할 수 있는 후보만 돌려준다.
+ * 이미 구성원인 인물과, 현재 진도보다 뒤에 등장하는 인물(미해금)은 뺀다. 등장 회차를 모르는 인물은 서버가 이미 거른 것으로 보고 남긴다.
+ *
+ * @param {Array<{ id: string, unlockEpisode?: number }>} [persons=[]] 인물 목록
+ * @param {Array<{ id: string }>} [members=[]] 현재 구성원 목록
+ * @param {number} [maxEpisode] 현재 진도(읽은 회차). 없으면 진도로는 거르지 않는다.
+ * @returns {Array} 구성원으로 추가할 수 있는 인물 목록
+ */
+export const getMemberCandidates = (persons = [], members = [], maxEpisode) =>
+  persons.filter(
+    (person) =>
+      !members.some((member) => member.id === person.id) &&
+      (maxEpisode == null || person.unlockEpisode == null || person.unlockEpisode <= maxEpisode),
+  )
+
+/**
+ * 검색어와 이름이 같은 인물을 찾는다. 앞뒤 공백과 대소문자는 무시한다.
+ *
+ * @param {Array<{ name: string }>} [persons=[]] 인물 목록
+ * @param {string} [query=''] 검색어
+ * @returns {object | undefined} 이름이 같은 인물. 없거나 검색어가 비어 있으면 undefined
+ */
+export const findPersonByName = (persons = [], query = '') => {
+  const key = query.trim().toLowerCase()
+
+  return key ? persons.find((person) => person.name.trim().toLowerCase() === key) : undefined
+}
 
 /**
  * 목록에서 한 항목을 빼서 원하는 위치로 옮긴 새 배열을 만든다. 원본 배열은 바꾸지 않는다.
@@ -211,3 +328,150 @@ export const insertMilestoneLatest = (milestones, milestone) => {
 
   return [...milestones.slice(0, index), milestone, ...milestones.slice(index)]
 }
+
+/** 관계 구역(우호·대립·중립)의 데이터 키 목록이다. */
+const RELATION_TYPES = ['friendly', 'hostile', 'neutral']
+
+/**
+ * 서버 목록과 지금 목록을 비교해, 순서(식별자 목록)와 사용자가 새로 만든 항목, 지운 서버 항목의 식별자만 뽑는다.
+ * 서버가 준 항목의 내용은 담지 않는다.
+ */
+const diffList = (baseItems, currentItems) => {
+  const baseIds = new Set(baseItems.map((item) => item.id))
+  const currentIds = new Set(currentItems.map((item) => item.id))
+
+  return {
+    order: currentItems.map((item) => item.id),
+    added: currentItems.filter((item) => !baseIds.has(item.id)),
+    removed: baseItems.filter((item) => !currentIds.has(item.id)).map((item) => item.id),
+  }
+}
+
+/**
+ * 서버 목록 위에 `diffList`가 뽑은 편집을 적용한다. 편집이 없거나 모양이 맞지 않으면 서버 목록을 그대로 돌려준다.
+ * 편집한 뒤 서버에 새로 생긴 항목(순서에도 없고 지운 것도 아닌 항목)은 목록 끝에 붙인다.
+ */
+const applyList = (baseItems, edit) => {
+  if (!Array.isArray(edit?.order)) return baseItems
+
+  const lookup = new Map([...baseItems, ...(edit.added ?? [])].map((item) => [item.id, item]))
+  const known = new Set(edit.order)
+  const gone = new Set(edit.removed ?? [])
+  const ordered = edit.order.map((id) => lookup.get(id)).filter(Boolean)
+  const fresh = baseItems.filter((item) => !known.has(item.id) && !gone.has(item.id))
+
+  return [...ordered, ...fresh]
+}
+
+/**
+ * 서버에 있는 단체의 상세(구성원·관계·주요 행적)에서 사용자가 편집한 부분만 뽑는다.
+ * 서버 데이터를 브라우저 저장소에 그대로 복사해 두지 않기 위한 것으로, 서버 항목은 식별자(순서)만 남고
+ * 새로 추가한 항목과 고친 행적의 내용만 담긴다.
+ *
+ * @param {{ members?: Array, relations?: object, milestones?: Array }} base 서버가 준 단체 상세
+ * @param {{ members: Array, relations: object, milestones: Array }} current 지금 편집 중인 단체 상세
+ * @returns {{ members: object, relations: object, milestones: object }} 편집한 부분
+ */
+export const toDetailEdit = (base, current) => {
+  const baseRelations = base?.relations ?? {}
+  const currentRelations = current.relations ?? {}
+  const relationDiff = diffList(
+    Object.values(baseRelations).flat(),
+    Object.values(currentRelations).flat(),
+  )
+  const baseMilestones = new Map((base?.milestones ?? []).map((item) => [item.id, item]))
+
+  return {
+    members: diffList(base?.members ?? [], current.members),
+    relations: {
+      order: Object.fromEntries(
+        Object.entries(currentRelations).map(([type, items]) => [
+          type,
+          items.map((item) => item.id),
+        ]),
+      ),
+      added: relationDiff.added,
+      removed: relationDiff.removed,
+    },
+    milestones: {
+      ...diffList(base?.milestones ?? [], current.milestones),
+      changed: Object.fromEntries(
+        current.milestones
+          .filter((item) => {
+            const original = baseMilestones.get(item.id)
+            return (
+              original &&
+              (original.content !== item.content || original.unlockEpisode !== item.unlockEpisode)
+            )
+          })
+          .map((item) => [item.id, { content: item.content, unlockEpisode: item.unlockEpisode }]),
+      ),
+    },
+  }
+}
+
+/**
+ * 서버가 준 단체 상세 위에 `toDetailEdit`이 뽑은 편집을 적용해 편집 중이던 상세를 되살린다.
+ * 편집이 없거나 모양이 맞지 않으면 서버 상세를 그대로 돌려준다.
+ *
+ * @param {{ members?: Array, relations?: object, milestones?: Array }} base 서버가 준 단체 상세
+ * @param {object | undefined} edit `toDetailEdit`의 결과
+ * @returns {{ members: Array, relations: object, milestones: Array }} 편집을 적용한 단체 상세
+ */
+export const applyDetailEdit = (base, edit) => {
+  const baseRelations = base?.relations ?? {}
+  const flatBaseRelations = Object.values(baseRelations).flat()
+  const relationEdit = edit?.relations
+  let relations = baseRelations
+
+  if (relationEdit?.order && typeof relationEdit.order === 'object') {
+    const lookup = new Map(
+      [...flatBaseRelations, ...(relationEdit.added ?? [])].map((item) => [item.id, item]),
+    )
+    const known = new Set(Object.values(relationEdit.order).flat())
+    const gone = new Set(relationEdit.removed ?? [])
+    relations = Object.fromEntries(
+      RELATION_TYPES.concat(Object.keys(relationEdit.order))
+        .filter((type, index, types) => types.indexOf(type) === index)
+        .map((type) => [
+          type,
+          [
+            ...(relationEdit.order[type] ?? []).map((id) => lookup.get(id)).filter(Boolean),
+            ...(baseRelations[type] ?? []).filter(
+              (item) => !known.has(item.id) && !gone.has(item.id),
+            ),
+          ],
+        ])
+        .filter(([, items]) => items.length > 0),
+    )
+  }
+
+  const changed = edit?.milestones?.changed ?? {}
+  const milestones = applyList(base?.milestones ?? [], edit?.milestones).map((item) =>
+    changed[item.id] ? { ...item, ...changed[item.id], unlockLabel: undefined } : item,
+  )
+
+  return {
+    members: applyList(base?.members ?? [], edit?.members),
+    relations,
+    milestones,
+  }
+}
+
+/**
+ * 편집한 부분이 하나도 없는지 확인한다. 서버 상세와 같은 상태로 되돌려 놓은 임시 저장은 저장할 필요가 없다.
+ *
+ * @param {{ members: object, relations: object, milestones: object }} edit `toDetailEdit`의 결과
+ * @param {{ members?: Array, relations?: object, milestones?: Array }} base 서버가 준 단체 상세
+ * @returns {boolean} 서버 상세와 순서까지 같으면 true
+ */
+export const isEmptyDetailEdit = (edit, base) =>
+  JSON.stringify(applyDetailEdit(base, edit)) ===
+  JSON.stringify({
+    members: base?.members ?? [],
+    relations: Object.fromEntries(
+      Object.entries(base?.relations ?? {}).filter(([, items]) => items.length > 0),
+    ),
+    // 상세 화면은 행적을 처음에 최신순으로 정렬해 보여주므로, 손대지 않은 상태의 기준도 최신순이다.
+    milestones: sortMilestonesLatest(base?.milestones ?? []),
+  })

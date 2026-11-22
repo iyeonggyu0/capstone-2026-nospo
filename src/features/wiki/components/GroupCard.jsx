@@ -27,8 +27,9 @@ const GroupImage = ({ imageUrl }) => {
  * @param {number} [props.memberCount] 인원 수
  * @param {string} [props.imageUrl] 단체 대표 이미지 주소
  * @param {(id: string) => void} [props.onDelete] `삭제`를 눌렀을 때 실행. 없으면 버튼을 숨긴다.
+ * @param {object} [props.linkState] 상세 화면으로 이동할 때 함께 넘길 도서·진도·작성 방식 값
  */
-export const GroupCard = ({ id, name, memberCount, imageUrl, onDelete }) => {
+export const GroupCard = ({ id, name, memberCount, imageUrl, onDelete, linkState }) => {
   return (
     <article className="flex flex-col gap-2.5">
       <GroupImage imageUrl={imageUrl} />
@@ -40,7 +41,7 @@ export const GroupCard = ({ id, name, memberCount, imageUrl, onDelete }) => {
             {onDelete && (
               <button
                 aria-label={`${name} 삭제`}
-                className="-my-3.5 min-h-11 pr-0.5 pl-1 text-red-destructive"
+                className="-my-3.5 min-h-11 min-w-9 pr-0.5 pl-1 text-red-destructive"
                 onClick={() => onDelete(id)}
                 type="button"
               >
@@ -49,6 +50,7 @@ export const GroupCard = ({ id, name, memberCount, imageUrl, onDelete }) => {
             )}
             <Link
               className="-my-3.5 inline-flex min-h-11 items-center gap-1"
+              state={linkState}
               to={getGroupDetailPath(id, 'edit')}
               aria-label={`${name} 수정하기`}
             >

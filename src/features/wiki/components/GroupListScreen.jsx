@@ -8,6 +8,7 @@ import { SCREEN_MIN_HEIGHT_CLASS } from '../constants'
 import { useGroupDraft } from '../hooks/useGroupDraft'
 import { GroupAddModal } from './GroupAddModal'
 import { GroupCard } from './GroupCard'
+import { GroupHeader } from './GroupHeader'
 import { GroupSubmitBar } from './GroupSubmitBar'
 
 /** 상단 보상 안내 문구다. */
@@ -59,7 +60,8 @@ const GroupListEmpty = () => (
  * @param {object} props 컴포넌트 props
  * @param {{ title: string, progressLabel: string, statusLabel: string, coverImageSrc?: string, currentEpisode?: number }} [props.book] 현재 도서 정보. `currentEpisode`는 등장 회차의 최댓값이다.
  * @param {Array<{ id: string, name: string, memberCount: number, imageUrl?: string }>} [props.groups=[]] 단체 목록
- * @param {string | null} [props.editionId] 추가·삭제 초안을 판본별로 구분하는 도서 판본 식별자
+ * @param {string | null} [props.editionId] 추가·삭제 초안을 도서별로 구분하는 도서 식별자
+ * @param {object} [props.detailState] 단체 카드를 눌러 상세 화면으로 이동할 때 함께 넘길 도서·진도·작성 방식 값
  * @param {number} [props.personCount] `인물` 칩 옆에 표시할 인물 수
  * @param {'view' | 'edit'} [props.mode='edit'] `edit`는 처음부터 삭제 버튼과 검수 제출 영역을 보여준다(Figma 편집 상태). `view`는 이를 숨기고, 단체를 추가·삭제하는 순간 편집 상태가 된다.
  * @param {string} [props.episodeUnit='화'] 진도 단위
@@ -69,12 +71,12 @@ const GroupListEmpty = () => (
  * @param {(changes: { addedGroups: Array, removedGroupIds: string[] }) => Promise<unknown>} [props.onSubmit] `검수 제출`을 눌렀을 때 추가한 단체와 삭제한 단체 식별자와 함께 실행하며 성공하면 resolve, 실패하면 reject한다. 없거나 변경이 없으면 제출 버튼이 비활성
  * @param {boolean} [props.isSubmitting=false] 제출 요청 중인지 여부
  * @param {string} [props.submitError] 제출 실패 안내 문구
- * @param {() => void} [props.onSaveDraft] `임시 저장`을 눌렀을 때 실행. 없으면 비활성
  */
 export const GroupListScreen = ({
   book,
   groups = [],
   editionId,
+  detailState,
   personCount,
   mode = 'edit',
   episodeUnit = '화',
@@ -84,7 +86,6 @@ export const GroupListScreen = ({
   onSubmit,
   isSubmitting = false,
   submitError,
-  onSaveDraft,
 }) => {
   const draft = useGroupDraft(groups, editionId)
   const [isAddOpen, setIsAddOpen] = useState(false)
@@ -105,6 +106,7 @@ export const GroupListScreen = ({
       // 실패 문구는 부모가 submitError로 보여주며, 추가한 단체는 그대로 둔다.
     }
   }
+
   const categories = [
     { value: 'person', label: '인물', count: personCount },
     { value: 'group', label: '단체' },
@@ -112,6 +114,7 @@ export const GroupListScreen = ({
 
   return (
     <div className={`flex flex-col ${SCREEN_MIN_HEIGHT_CLASS}`}>
+      <GroupHeader currentEpisode={book?.currentEpisode} episodeUnit={episodeUnit} />
       <section
         className="flex flex-1 flex-col gap-3 px-5 pt-3 pb-6"
         aria-labelledby="group-list-title"
@@ -143,7 +146,11 @@ export const GroupListScreen = ({
           <ul className="grid grid-cols-2 gap-x-3 gap-y-3.5">
             {draft.groups.map((group) => (
               <li key={group.id}>
-                <GroupCard {...group} onDelete={isEditing ? draft.removeGroup : undefined} />
+                <GroupCard
+                  {...group}
+                  linkState={detailState}
+                  onDelete={isEditing ? draft.removeGroup : undefined}
+                />
               </li>
             ))}
           </ul>
@@ -172,8 +179,8 @@ export const GroupListScreen = ({
         <GroupSubmitBar
           errorMessage={submitError}
           isSubmitting={isSubmitting}
-          onDiscard={draft.reset}
-          onSaveDraft={onSaveDraft}
+          onDiscard={draft.discard}
+          onSaveDraft={draft.save}
           onSubmit={onSubmit && draft.hasChanges ? handleSubmit : undefined}
         />
       )}

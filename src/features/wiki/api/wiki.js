@@ -41,6 +41,16 @@ export const groupApi = {
     }),
 }
 
+/**
+ * 단체 구성원으로 고를 수 있는 인물 목록 요청이다. 인물 위키에 등록된 인물을 불러온다.
+ * 현재 진도(`positionValue`)를 함께 보내 아직 공개되지 않은 인물은 서버가 걸러서 주게 한다.
+ * 주소와 응답(`{ items: [{ id, name, unlockEpisode }] }`)은 단체 API와 마찬가지로 명세 확정 전의 가안이다.
+ */
+export const personApi = {
+  list: (editionId, positionValue) =>
+    request('get', '/wiki/persons', undefined, { params: { editionId, positionValue } }),
+}
+
 /** 신청한 위키의 검수 진행 상황 요청이다. */
 export const reviewApi = {
   progress: (reviewId) => request('get', `/wiki/reviews/${encodeURIComponent(reviewId)}`),

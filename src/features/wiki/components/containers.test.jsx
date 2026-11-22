@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { groupApi } from '../api/wiki'
 import { groupQueryKeys } from '../hooks/useGroupQueries'
 import { useGroupDraftStore } from '../store'
+import { toDetailEdit } from '../utils'
 import { GroupDetailContainer } from './GroupDetailContainer'
 import { GroupListContainer } from './GroupListContainer'
 
@@ -36,15 +37,56 @@ const renderContainer = async (element, prefetch) => {
   )
 }
 
-const prefetchList = (client) =>
-  client.prefetchQuery({ queryKey: groupQueryKeys.list(null), queryFn: () => groupApi.list(null) })
-
 const prefetchDetail = (groupId) => (client) =>
   client.prefetchQuery({
     queryKey: groupQueryKeys.detail(groupId),
     queryFn: () => groupApi.detail(groupId),
     retry: false,
   })
+
+/** 테스트 전용 도서 정보다. 개발용 모의 서버에는 미리 만든 단체가 없으므로 필요한 데이터를 여기서 만든다. */
+const fixtureBook = {
+  title: '애주가의 절주 일기',
+  progressLabel: '32화까지 읽음',
+  editLabel: '32화 수정',
+  currentEpisode: 32,
+  episodeUnit: '화',
+}
+
+/** 테스트 전용 단체 상세다. */
+const fixtureGroup = {
+  id: 'g1',
+  name: '그리핀도르',
+  scale: '중',
+  memberCount: 1,
+  members: [{ id: 'p1', name: '서하준', unlockEpisode: 1 }],
+  relations: {},
+  milestones: [],
+}
+
+/** 목록 조회 결과를 캐시에 직접 넣어 둔다. */
+const seedList = (client) =>
+  client.setQueryData(groupQueryKeys.list(null), {
+    book: fixtureBook,
+    personCount: 1,
+    items: [{ id: 'g1', name: '그리핀도르', memberCount: 1 }],
+  })
+
+/** 단체 상세 조회 결과를 캐시에 직접 넣어 둔다. */
+const seedDetail = (groupId) => (client) =>
+  client.setQueryData(groupQueryKeys.detail(groupId), { book: fixtureBook, group: fixtureGroup })
+
+/** 상세 조회 결과와, 구성원으로 고를 수 있는 인물 목록 조회 결과를 캐시에 직접 넣어 둔다. */
+const seedDetailWithPersons = (groupId) => (client) => {
+  seedDetail(groupId)(client)
+  client.setQueryData(groupQueryKeys.persons(undefined, fixtureBook.currentEpisode), {
+    items: [
+      { id: 'p1', name: '서하준', unlockEpisode: 1 },
+      { id: 'p9', name: '새로운 인물', unlockEpisode: 5 },
+      { id: 'p8', name: '아직 모르는 인물', unlockEpisode: 40 },
+    ],
+  })
+}
 
 describe('GroupListContainer', () => {
   it('데이터를 받기 전에는 로딩 상태를 보여준다', async () => {
@@ -54,13 +96,20 @@ describe('GroupListContainer', () => {
   })
 
   it('조회한 도서 정보와 단체 목록을 목록 화면에 전달한다', async () => {
-    const html = await renderContainer(<GroupListContainer />, prefetchList)
+    const html = await renderContainer(<GroupListContainer />, seedList)
 
     expect(html).toContain('애주가의 절주 일기')
     expect(html).toContain('32화까지 읽음')
     expect(html).toContain('그리핀도르')
     expect(html).toContain('groupId=g1&amp;mode=edit')
     expect(html).toContain('신규 단체 추가')
+  })
+
+  it('이동 때 넘어온 진도가 있으면 서버가 준 진도 문구 대신 그 값으로 보여준다', async () => {
+    const html = await renderContainer(<GroupListContainer position={40} />, seedList)
+
+    expect(html).toContain('40화까지 읽음')
+    expect(html).not.toContain('32화까지 읽음')
   })
 })
 
@@ -80,9 +129,98 @@ describe('GroupDetailContainer (새로 추가한 단체)', () => {
     expect(html).not.toContain('단체를 찾을 수 없어요.')
     expect(html).not.toContain('불러오는 중')
   })
+
+  it('새로 추가한 단체는 편집하기 전에도 검수 제출 버튼이 활성이다', async () => {
+    useGroupDraftStore.getState().addGroup('default', { name: '신규 단체', unlockEpisode: 3 })
+
+    const html = await renderContainer(<GroupDetailContainer groupId="draft-1" mode="edit" />)
+
+    expect(getSubmitButtonTag(html)).not.toMatch(DISABLED_ATTRIBUTE)
+  })
+})
+
+/** 버튼의 `disabled` 속성만 찾는다. `disabled:opacity-50` 같은 CSS 클래스 이름은 속성이 아니므로 제외한다. */
+const DISABLED_ATTRIBUTE = /\sdisabled(=|\s|>)/
+
+/** HTML에서 `text` 글자가 들어 있는 버튼의 여는 태그를 찾아 돌려준다. */
+const getButtonTag = (html, text) => {
+  const textIndex = html.indexOf(text)
+  const start = html.lastIndexOf('<button', textIndex)
+
+  return html.slice(start, html.indexOf('>', start) + 1)
+}
+
+/** `검수 제출` 버튼의 여는 태그를 돌려준다. */
+const getSubmitButtonTag = (html) => getButtonTag(html, '검수 제출')
+
+describe('GroupDetailContainer (임시 저장·구성원 선택)', () => {
+  const initialState = useGroupDraftStore.getState()
+
+  afterEach(() => {
+    useGroupDraftStore.setState(initialState, true)
+  })
+
+  it('편집 모드에서는 임시 저장 버튼이 활성이다', async () => {
+    const html = await renderContainer(
+      <GroupDetailContainer groupId="g1" mode="edit" />,
+      seedDetail('g1'),
+    )
+
+    expect(getButtonTag(html, '임시 저장')).not.toMatch(DISABLED_ATTRIBUTE)
+  })
+
+  it('임시 저장한 서버 단체는 저장한 내용으로 다시 열고, 편집 전에도 검수 제출을 누를 수 있다', async () => {
+    // 임시 저장에는 서버 데이터 전체가 아니라 편집한 부분(toDetailEdit)만 들어간다.
+    useGroupDraftStore.getState().saveDetailDraft(
+      'g1',
+      toDetailEdit(fixtureGroup, {
+        members: [{ id: 'p9', name: '임시 저장한 구성원' }],
+        relations: {},
+        milestones: [],
+      }),
+    )
+
+    const html = await renderContainer(
+      <GroupDetailContainer groupId="g1" mode="edit" />,
+      seedDetail('g1'),
+    )
+
+    expect(html).toContain('임시 저장한 구성원')
+    expect(html).not.toContain('서하준 삭제')
+    expect(getSubmitButtonTag(html)).not.toMatch(DISABLED_ATTRIBUTE)
+  })
+
+  it('구성원은 인물 목록에서 고르며, 이미 구성원인 인물은 자동완성 후보에서 뺀다', async () => {
+    const html = await renderContainer(
+      <GroupDetailContainer groupId="g1" mode="edit" />,
+      seedDetailWithPersons('g1'),
+    )
+
+    expect(html).toContain('<datalist')
+    expect(html).toContain('value="새로운 인물"')
+    expect(html).not.toContain('value="서하준"')
+  })
+
+  it('현재 진도보다 뒤에 등장하는 인물은 서버가 보내도 후보에 나오지 않는다', async () => {
+    const html = await renderContainer(
+      <GroupDetailContainer groupId="g1" mode="edit" />,
+      seedDetailWithPersons('g1'),
+    )
+
+    expect(html).not.toContain('아직 모르는 인물')
+  })
 })
 
 describe('GroupDetailContainer', () => {
+  it('서버에 있는 단체는 편집하기 전에는 검수 제출 버튼이 비활성이다', async () => {
+    const html = await renderContainer(
+      <GroupDetailContainer groupId="g1" mode="edit" />,
+      seedDetail('g1'),
+    )
+
+    expect(getSubmitButtonTag(html)).toMatch(DISABLED_ATTRIBUTE)
+  })
+
   it('단체 식별자가 없으면 찾을 수 없음 안내를 보여준다', async () => {
     const html = await renderContainer(<GroupDetailContainer />)
 
@@ -98,7 +236,7 @@ describe('GroupDetailContainer', () => {
   it('mode=view로 열면 단체 정보와 현재 진도를 보여주고 편집 컨트롤은 숨긴다', async () => {
     const html = await renderContainer(
       <GroupDetailContainer groupId="g1" mode="view" />,
-      prefetchDetail('g1'),
+      seedDetail('g1'),
     )
 
     expect(html).toContain('그리핀도르')
@@ -107,8 +245,23 @@ describe('GroupDetailContainer', () => {
     expect(html).not.toContain('검수 제출')
   })
 
+  it('이동 때 넘어온 진도와 작성 방식(CREATE)으로 진도 배지 문구를 만든다', async () => {
+    const created = await renderContainer(
+      <GroupDetailContainer groupId="g1" position={40} wikiMode="CREATE" />,
+      seedDetail('g1'),
+    )
+    const updated = await renderContainer(
+      <GroupDetailContainer groupId="g1" position={40} wikiMode="UPDATE" />,
+      seedDetail('g1'),
+    )
+
+    expect(created).toContain('40화 등록')
+    expect(updated).toContain('40화 수정')
+    expect(created).not.toContain('32화 수정')
+  })
+
   it('mode가 없어도 편집 모드로 열려 검색 줄, 삭제, 검수 제출이 보인다', async () => {
-    const html = await renderContainer(<GroupDetailContainer groupId="g1" />, prefetchDetail('g1'))
+    const html = await renderContainer(<GroupDetailContainer groupId="g1" />, seedDetail('g1'))
 
     expect(html).toContain('인물 검색')
     expect(html).toContain('서하준 삭제')
@@ -118,7 +271,7 @@ describe('GroupDetailContainer', () => {
   it('편집 모드에서는 검색 줄과 검수 제출 영역을 보여준다', async () => {
     const html = await renderContainer(
       <GroupDetailContainer groupId="g1" mode="edit" />,
-      prefetchDetail('g1'),
+      seedDetail('g1'),
     )
 
     expect(html).toContain('인물 검색')

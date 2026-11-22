@@ -12,6 +12,9 @@ const sizeStyles = {
   },
 }
 
+/** 규모나 인원 값을 아직 알 수 없을 때 대신 보여주는 표시다. */
+const EMPTY_VALUE = '-'
+
 /** 단체 이미지를 보여주고, 이미지가 없으면 글자 없이 연한 빈 상자로 자리를 채운다. */
 const SummaryAvatar = ({ imageUrl, className }) => {
   if (imageUrl) {
@@ -36,12 +39,12 @@ const SummaryRow = ({ label, value, valueClassName }) => (
 )
 
 /**
- * 단체의 이미지, 이름, 규모, 인원을 요약해서 보여준다.
+ * 단체의 이미지, 이름, 규모, 인원을 요약해서 보여준다. 규모와 인원 줄은 Figma처럼 항상 보여주고, 값이 없으면 `-`로 채운다.
  * 상세 화면 머리에는 `large`, 관계 목록의 항목에는 `small`을 사용한다.
  *
  * @param {object} props 컴포넌트 props
  * @param {string} props.name 단체 이름
- * @param {string} [props.scale] 단체 규모 (예: 중)
+ * @param {string} [props.scale] 단체 규모 (예: 중). 아직 정해지지 않은 새 단체는 없을 수 있다.
  * @param {number} [props.memberCount] 인원 수
  * @param {string} [props.imageUrl] 단체 대표 이미지 주소
  * @param {'large' | 'small'} [props.size='large'] 요약 크기
@@ -63,10 +66,12 @@ export const GroupSummary = ({
       <SummaryAvatar className={styles.avatar} imageUrl={imageUrl} />
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
         <NameTag className={`truncate text-text-primary ${styles.name}`}>{name}</NameTag>
-        {scale != null && <SummaryRow label="규모" value={scale} valueClassName={styles.value} />}
-        {memberCount != null && (
-          <SummaryRow label="인원" value={`${memberCount}명`} valueClassName={styles.value} />
-        )}
+        <SummaryRow label="규모" value={scale ?? EMPTY_VALUE} valueClassName={styles.value} />
+        <SummaryRow
+          label="인원"
+          value={memberCount != null ? `${memberCount}명` : EMPTY_VALUE}
+          valueClassName={styles.value}
+        />
       </div>
     </div>
   )

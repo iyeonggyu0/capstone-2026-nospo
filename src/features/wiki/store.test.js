@@ -87,6 +87,69 @@ describe('단체 초안 스토어', () => {
     expect(group.milestones[0].content).toBe('첫 출항')
     expect(group.memberCount).toBe(1)
   })
+
+  it('서버 단체의 상세 임시 저장을 단체별로 보관하고, 제출 후 지운다', () => {
+    const { saveDetailDraft, clearDetailDraft } = useGroupDraftStore.getState()
+    const detail = { members: [{ id: 'p1', name: '서하준' }], relations: {}, milestones: [] }
+
+    saveDetailDraft('g1', detail)
+    saveDetailDraft('g2', { ...detail, members: [] })
+
+    expect(useGroupDraftStore.getState().detailDrafts.g1).toEqual(detail)
+    expect(Object.keys(useGroupDraftStore.getState().detailDrafts)).toEqual(['g1', 'g2'])
+
+    clearDetailDraft('g1')
+
+    expect(useGroupDraftStore.getState().detailDrafts.g1).toBeUndefined()
+    expect(useGroupDraftStore.getState().detailDrafts.g2).toBeDefined()
+  })
+})
+
+describe('단체 초안 스토어 (임시 저장 상태로 되돌리기)', () => {
+  it('저장 안함은 마지막으로 임시 저장한 목록으로 되돌린다', () => {
+    const { addGroup, saveDraftSnapshot, restoreDraftSnapshot } = useGroupDraftStore.getState()
+    addGroup('e1', { name: '저장한 단체', unlockEpisode: 1 })
+    saveDraftSnapshot('e1')
+    addGroup('e1', { name: '저장 안 한 단체', unlockEpisode: 2 })
+
+    restoreDraftSnapshot('e1')
+
+    const names = useGroupDraftStore.getState().drafts.e1.addedGroups.map((group) => group.name)
+    expect(names).toEqual(['저장한 단체'])
+  })
+
+  it('임시 저장한 적이 없으면 저장 안함은 목록 초안을 비운다', () => {
+    const { addGroup, restoreDraftSnapshot } = useGroupDraftStore.getState()
+    addGroup('e1', { name: 'A', unlockEpisode: 1 })
+
+    restoreDraftSnapshot('e1')
+
+    expect(useGroupDraftStore.getState().drafts.e1.addedGroups).toEqual([])
+  })
+
+  it('판본마다 임시 저장 상태를 따로 기억한다', () => {
+    const { addGroup, saveDraftSnapshot, restoreDraftSnapshot } = useGroupDraftStore.getState()
+    addGroup('e1', { name: 'A', unlockEpisode: 1 })
+    saveDraftSnapshot('e1')
+    addGroup('e2', { name: 'B', unlockEpisode: 1 })
+
+    restoreDraftSnapshot('e2')
+
+    expect(useGroupDraftStore.getState().drafts.e1.addedGroups).toHaveLength(1)
+    expect(useGroupDraftStore.getState().drafts.e2.addedGroups).toEqual([])
+  })
+
+  it('검수 제출 후 초안을 비우면 임시 저장 상태도 함께 비운다', () => {
+    const { addGroup, saveDraftSnapshot, resetDraft, restoreDraftSnapshot } =
+      useGroupDraftStore.getState()
+    addGroup('e1', { name: 'A', unlockEpisode: 1 })
+    saveDraftSnapshot('e1')
+
+    resetDraft('e1')
+    restoreDraftSnapshot('e1')
+
+    expect(useGroupDraftStore.getState().drafts.e1.addedGroups).toEqual([])
+  })
 })
 
 describe('단체 초안 스토어 (새로고침 유지)', () => {
