@@ -21,6 +21,8 @@ import {
   sortMilestonesLatest,
   toWikiNavigationState,
   applyDetailEdit,
+  filterUnlocked,
+  getGroupViewDetailPath,
   isEmptyDetailEdit,
   toDetailEdit,
   validateGroupName,
@@ -383,12 +385,12 @@ describe('sortMilestonesLatest / insertMilestoneLatest', () => {
 describe('getMemberCandidates / findPersonByName', () => {
   const persons = [
     { id: 'p1', name: '서하준' },
-    { id: 'p2', name: '김민솔' },
+    { id: 'p2', name: '배서현' },
     { id: 'p3', name: 'Alice' },
   ]
 
   it('이미 구성원인 인물은 후보에서 뺀다', () => {
-    const candidates = getMemberCandidates(persons, [{ id: 'p2', name: '김민솔' }])
+    const candidates = getMemberCandidates(persons, [{ id: 'p2', name: '배서현' }])
 
     expect(candidates.map((person) => person.id)).toEqual(['p1', 'p3'])
   })
@@ -396,7 +398,7 @@ describe('getMemberCandidates / findPersonByName', () => {
   it('현재 진도보다 뒤에 등장하는 인물은 후보에서 뺀다', () => {
     const withEpisodes = [
       { id: 'p1', name: '서하준', unlockEpisode: 1 },
-      { id: 'p2', name: '김민솔', unlockEpisode: 33 },
+      { id: 'p2', name: '배서현', unlockEpisode: 33 },
       { id: 'p3', name: '구교승' },
     ]
 
@@ -434,7 +436,7 @@ describe('toDetailEdit / applyDetailEdit (서버 데이터를 복사하지 않�
   const base = {
     members: [
       { id: 'p1', name: '서하준', unlockEpisode: 1 },
-      { id: 'p2', name: '김민솔', unlockEpisode: 3 },
+      { id: 'p2', name: '배서현', unlockEpisode: 3 },
     ],
     relations: {
       friendly: [{ id: 'g2', name: '래번클로', scale: '중', memberCount: 9 }],
@@ -538,5 +540,36 @@ describe('toDetailEdit / applyDetailEdit (서버 데이터를 복사하지 않�
     expect(
       applyDetailEdit(base, { members: [{ id: 'p9' }], relations: {}, milestones: [] }).members,
     ).toBe(base.members)
+  })
+})
+
+describe('getGroupViewDetailPath', () => {
+  it('단체 식별자를 쿼리로 붙인 위키 내용(보기) 단체 상세 주소를 만든다', () => {
+    expect(getGroupViewDetailPath('g1')).toBe('/wiki/view/group/detail?groupId=g1')
+    expect(getGroupViewDetailPath(7)).toBe('/wiki/view/group/detail?groupId=7')
+  })
+
+  it('특수문자는 안전하게 인코딩한다', () => {
+    expect(getGroupViewDetailPath('a b&c')).toBe('/wiki/view/group/detail?groupId=a+b%26c')
+  })
+})
+
+describe('filterUnlocked', () => {
+  const items = [{ id: 'a', unlockEpisode: 1 }, { id: 'b', unlockEpisode: 33 }, { id: 'c' }]
+
+  it('현재 진도보다 뒤에 등장하는 항목은 뺀다', () => {
+    expect(filterUnlocked(items, 32).map((item) => item.id)).toEqual(['a', 'c'])
+    expect(filterUnlocked(items, 33).map((item) => item.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('등장 회차를 모르는 항목은 남기고, 진도를 모르면 거르지 않는다', () => {
+    expect(filterUnlocked(items).length).toBe(3)
+    expect(filterUnlocked(undefined, 32)).toEqual([])
+  })
+
+  it('원본 목록은 바꾸지 않는다', () => {
+    filterUnlocked(items, 1)
+
+    expect(items).toHaveLength(3)
   })
 })

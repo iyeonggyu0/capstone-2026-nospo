@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Badge, Button, DetailTabs } from '@/components/common-ui'
-import { SCREEN_MIN_HEIGHT_CLASS } from '../constants'
+import { SCREEN_MIN_HEIGHT_CLASS, TAB_OPTIONS } from '../constants'
 import { useGroupDetailDraft } from '../hooks/useGroupDetailDraft'
 import { getMemberCandidates } from '../utils'
 import { GroupHeader } from './GroupHeader'
@@ -10,15 +10,8 @@ import { GroupRelationList } from './GroupRelationList'
 import { GroupSubmitBar } from './GroupSubmitBar'
 import { GroupSummary } from './GroupSummary'
 
-/** 상세 화면의 탭 목록이다. */
-const TAB_OPTIONS = [
-  { value: 'members', label: '구성원' },
-  { value: 'relations', label: '관계' },
-  { value: 'milestones', label: '주요 행적' },
-]
-
 /** 제목 `단체 정보`와 현재 진도 알약을 한 줄로 보여준다. */
-const GroupDetailHeader = ({ progressLabel }) => (
+export const GroupDetailHeader = ({ progressLabel }) => (
   <div className="flex h-10 items-center gap-2.5">
     <h1 className="min-w-0 flex-1 text-title font-bold text-text-primary" id="group-detail-title">
       단체 정보
@@ -28,7 +21,7 @@ const GroupDetailHeader = ({ progressLabel }) => (
 )
 
 /** 단체 정보를 불러오는 동안 요약 카드와 목록 모양의 자리표시를 보여준다. */
-const GroupDetailSkeleton = () => (
+export const GroupDetailSkeleton = () => (
   <div className="flex animate-pulse flex-col gap-3" role="status" aria-busy="true">
     <span className="sr-only">단체 정보를 불러오는 중이에요.</span>
     <div aria-hidden="true" className="h-39.5 rounded-lg bg-canvas" />
@@ -38,7 +31,7 @@ const GroupDetailSkeleton = () => (
 )
 
 /** 단체 정보를 불러오지 못했을 때 안내하고 다시 시도할 수 있게 한다. */
-const GroupDetailError = ({ onRetry }) => (
+export const GroupDetailError = ({ onRetry }) => (
   <div className="flex flex-col items-center gap-3 py-10 text-center" role="alert">
     <p className="text-body text-text-secondary">단체 정보를 불러오지 못했어요.</p>
     <Button
@@ -52,7 +45,7 @@ const GroupDetailError = ({ onRetry }) => (
 )
 
 /** 단체를 찾을 수 없을 때 안내하고, 이전 화면으로 돌아갈 수 있는 버튼을 함께 보여준다. */
-const GroupNotFound = ({ onBack }) => (
+export const GroupNotFound = ({ onBack }) => (
   <div className="flex flex-col items-center gap-3 py-10 text-center">
     <p className="text-body text-text-secondary">단체를 찾을 수 없어요.</p>
     {onBack && (

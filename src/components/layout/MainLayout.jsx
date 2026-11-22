@@ -48,13 +48,14 @@ const getHeaderProps = (pathname) => {
 /** 헤더와 페이지 콘텐츠를 스크롤하고, 푸터는 프레임 하단에 고정한다. */
 export const MainLayout = () => {
   const { pathname } = useLocation()
+  // 단체 편집·보기 화면은 진도 변경이 필요해서 기본 헤더 대신 화면이 직접 헤더를 그린다.
+  const hasOwnHeader =
+    pathname.startsWith(ROUTES.WIKI_REGISTER_GROUP) || pathname.startsWith(ROUTES.WIKI_VIEW_GROUP)
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <main className="min-h-0 flex-1 overflow-y-auto bg-surface">
-        {!pathname.startsWith(ROUTES.WIKI_REGISTER_GROUP) && (
-          <Header {...getHeaderProps(pathname)} />
-        )}
+        {!hasOwnHeader && <Header {...getHeaderProps(pathname)} />}
         <Outlet />
       </main>
       <BottomNavigation />

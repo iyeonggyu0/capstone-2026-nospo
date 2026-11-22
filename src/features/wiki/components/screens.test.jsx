@@ -236,7 +236,7 @@ describe('GroupHeader', () => {
 
 describe('GroupMemberList (인물에서 구성원 고르기)', () => {
   const candidates = [
-    { id: 'p2', name: '김민솔', unlockEpisode: 3 },
+    { id: 'p2', name: '배서현', unlockEpisode: 3 },
     { id: 'p3', name: '구교승', unlockEpisode: 7 },
   ]
 
@@ -246,7 +246,7 @@ describe('GroupMemberList (인물에서 구성원 고르기)', () => {
     )
 
     expect(html).toContain('<datalist')
-    expect(html).toContain('value="김민솔"')
+    expect(html).toContain('value="배서현"')
     expect(html).toContain('value="구교승"')
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>추가/)
   })

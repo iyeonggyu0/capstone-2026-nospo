@@ -4,20 +4,15 @@ import sparklesIcon from '@/assets/icons/wiki/sparkles.svg'
 import { BookContext } from '@/components/BookContext'
 import { Notice } from '@/components/Notice'
 import { Button, WikiCategory } from '@/components/common-ui'
-import { SCREEN_MIN_HEIGHT_CLASS } from '../constants'
+import { PROGRESS_HINT, REWARD_NOTICE, SCREEN_MIN_HEIGHT_CLASS } from '../constants'
 import { useGroupDraft } from '../hooks/useGroupDraft'
 import { GroupAddModal } from './GroupAddModal'
 import { GroupCard } from './GroupCard'
 import { GroupHeader } from './GroupHeader'
 import { GroupSubmitBar } from './GroupSubmitBar'
 
-/** 상단 보상 안내 문구다. */
-const REWARD_NOTICE = '검수 승인 시 AI 토큰 최대 10개를 보상으로 드려요.'
-/** 진도 변경 안내 문구다. */
-const PROGRESS_HINT = '현재 읽은 범위까지 진도를 변경하고, 수정할 수 있어요.'
-
 /** 단체 목록을 불러오는 동안 카드 모양의 자리표시를 보여준다. */
-const GroupListSkeleton = () => (
+export const GroupListSkeleton = () => (
   <div className="grid grid-cols-2 gap-x-3 gap-y-3.5" role="status" aria-busy="true">
     <span className="sr-only">단체 목록을 불러오는 중이에요.</span>
     {[0, 1, 2, 3].map((index) => (
@@ -31,7 +26,7 @@ const GroupListSkeleton = () => (
 )
 
 /** 단체 목록을 불러오지 못했을 때 안내하고 다시 시도할 수 있게 한다. */
-const GroupListError = ({ onRetry }) => (
+export const GroupListError = ({ onRetry }) => (
   <div className="flex flex-col items-center gap-3 py-10 text-center" role="alert">
     <p className="text-body text-text-secondary">단체 목록을 불러오지 못했어요.</p>
     <Button
@@ -45,7 +40,7 @@ const GroupListError = ({ onRetry }) => (
 )
 
 /** 등록된 단체가 하나도 없을 때 첫 단체 추가를 안내한다. */
-const GroupListEmpty = () => (
+export const GroupListEmpty = () => (
   <div className="py-10 text-center">
     <p className="text-body font-medium text-text-primary">아직 등록된 단체가 없어요.</p>
     <p className="mt-1 text-caption text-text-secondary">아래 버튼으로 첫 단체를 추가해 보세요.</p>
