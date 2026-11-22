@@ -2,9 +2,13 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { StaticRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { GroupDetailScreen } from './GroupDetailScreen'
+import { GroupHeader } from './GroupHeader'
 import { GroupListScreen } from './GroupListScreen'
+import { GroupMemberList } from './GroupMemberList'
 import { GroupMilestoneList } from './GroupMilestoneList'
 import { GroupRelationList } from './GroupRelationList'
+import { GroupSubmitBar } from './GroupSubmitBar'
+import { GroupSummary } from './GroupSummary'
 
 const group = {
   id: 'g1',
@@ -128,6 +132,130 @@ describe('GroupDetailScreen', () => {
     )
     expect(renderWithRouter(<GroupDetailScreen />)).toContain('단체를 찾을 수 없어요.')
     expect(renderWithRouter(<GroupDetailScreen status="error" />)).toContain('다시 시도')
+  })
+})
+
+describe('GroupSummary', () => {
+  it('규모와 인원을 모두 보여준다', () => {
+    const html = renderWithRouter(<GroupSummary memberCount={12} name="그리핀도르" scale="중" />)
+
+    expect(html).toContain('규모')
+    expect(html).toContain('중')
+    expect(html).toContain('12명')
+  })
+
+  it('규모를 아직 모르는 새 단체도 규모 줄을 숨기지 않고 -로 보여준다', () => {
+    const html = renderWithRouter(<GroupSummary memberCount={0} name="신규 단체" />)
+
+    expect(html).toContain('규모')
+    expect(html).toContain('>-<')
+    expect(html).toContain('0명')
+  })
+
+  it('인원을 모르면 인원 줄도 -로 보여준다', () => {
+    const html = renderWithRouter(<GroupSummary name="신규 단체" />)
+
+    expect(html).toContain('인원')
+    expect(html.match(/>-</g)).toHaveLength(2)
+  })
+})
+
+describe('단체 없음 상태', () => {
+  it('돌아갈 방법이 있으면 안내와 함께 돌아가기 버튼을 보여준다', () => {
+    const html = renderWithRouter(<GroupDetailScreen onBack={() => {}} />)
+
+    expect(html).toContain('단체를 찾을 수 없어요.')
+    expect(html).toContain('돌아가기')
+  })
+
+  it('돌아갈 방법이 없으면 돌아가기 버튼은 보여주지 않는다', () => {
+    const html = renderWithRouter(<GroupDetailScreen />)
+
+    expect(html).toContain('단체를 찾을 수 없어요.')
+    expect(html).not.toContain('돌아가기')
+  })
+})
+
+describe('GroupSubmitBar 임시 저장 실패', () => {
+  it('평소에는 임시 저장 버튼만 보이고 오류 안내는 없다', () => {
+    const html = renderWithRouter(<GroupSubmitBar onSaveDraft={() => {}} />)
+
+    expect(html).toContain('임시 저장')
+    expect(html).not.toContain('임시 저장 다시 시도')
+    expect(html).not.toContain('role="alert"')
+  })
+
+  it('저장에 실패하면 안내와 함께 다시 시도 버튼으로 바뀐다', () => {
+    const html = renderWithRouter(
+      <GroupSubmitBar
+        onSaveDraft={() => {}}
+        saveDraftError="임시 저장에 실패했어요. 다시 시도해 주세요."
+      />,
+    )
+
+    expect(html).toContain('임시 저장에 실패했어요. 다시 시도해 주세요.')
+    expect(html).toContain('role="alert"')
+    expect(html).toContain('임시 저장 다시 시도')
+  })
+})
+
+describe('GroupHeader', () => {
+  it('뒤로가기 동작이 없으면 로고와 진도 변경만 보여준다', () => {
+    const html = renderWithRouter(<GroupHeader currentEpisode={32} />)
+
+    expect(html).toContain('NOSPO')
+    expect(html).toContain('진도 변경')
+    expect(html).not.toContain('뒤로 가기')
+    expect(html).not.toContain('role="status"')
+  })
+
+  it('뒤로가기 동작이 있으면 접근 가능한 이름이 있는 뒤로가기 버튼을 보여준다', () => {
+    const html = renderWithRouter(<GroupHeader currentEpisode={32} onBack={() => {}} />)
+
+    expect(html).toContain('aria-label="뒤로 가기"')
+  })
+
+  it('현재 진도를 모르면 진도 변경 버튼이 비활성이다', () => {
+    const html = renderWithRouter(<GroupHeader />)
+
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>진도 변경<\/button>/)
+  })
+
+  it('단체 목록에는 뒤로가기 없이, 단체 상세에는 뒤로가기와 함께 헤더가 나온다', () => {
+    const list = renderWithRouter(<GroupListScreen book={book} groups={groups} personCount={7} />)
+    const detail = renderWithRouter(<GroupDetailScreen group={group} onBack={() => {}} />)
+    const notFound = renderWithRouter(<GroupDetailScreen onBack={() => {}} />)
+
+    expect(list).toContain('진도 변경')
+    expect(list).not.toContain('뒤로 가기')
+    expect(detail).toContain('진도 변경')
+    expect(detail).toContain('뒤로 가기')
+    expect(notFound).toContain('뒤로 가기')
+  })
+})
+
+describe('GroupMemberList (인물에서 구성원 고르기)', () => {
+  const candidates = [
+    { id: 'p2', name: '김민솔', unlockEpisode: 3 },
+    { id: 'p3', name: '구교승', unlockEpisode: 7 },
+  ]
+
+  it('편집 모드에서는 후보 인물 이름을 자동완성으로 보여주고, 입력 전에는 추가가 비활성이다', () => {
+    const html = renderWithRouter(
+      <GroupMemberList candidates={candidates} editable members={[]} onAdd={() => {}} />,
+    )
+
+    expect(html).toContain('<datalist')
+    expect(html).toContain('value="김민솔"')
+    expect(html).toContain('value="구교승"')
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>추가/)
+  })
+
+  it('보기 모드에서는 검색 줄과 자동완성이 없다', () => {
+    const html = renderWithRouter(<GroupMemberList candidates={candidates} members={[]} />)
+
+    expect(html).not.toContain('<datalist')
+    expect(html).not.toContain('인물 검색')
   })
 })
 

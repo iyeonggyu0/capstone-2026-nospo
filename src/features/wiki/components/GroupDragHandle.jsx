@@ -9,7 +9,7 @@
 export const GroupDragHandle = ({ label, disabled = false, ...handleProps }) => (
   <button
     aria-label={label}
-    className="flex min-w-4 shrink-0 cursor-grab touch-none items-center justify-center gap-0.5 self-stretch py-1.25 active:cursor-grabbing disabled:cursor-default"
+    className="-mx-2.5 flex min-w-9 shrink-0 cursor-grab touch-none items-center justify-center gap-0.5 self-stretch py-1.25 active:cursor-grabbing disabled:cursor-default"
     disabled={disabled}
     type="button"
     {...handleProps}

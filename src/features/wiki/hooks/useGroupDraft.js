@@ -25,6 +25,8 @@ export const useGroupDraft = (groups = [], editionId) => {
   const addToStore = useGroupDraftStore((state) => state.addGroup)
   const removeFromStore = useGroupDraftStore((state) => state.removeGroup)
   const resetStore = useGroupDraftStore((state) => state.resetDraft)
+  const saveSnapshot = useGroupDraftStore((state) => state.saveDraftSnapshot)
+  const restoreSnapshot = useGroupDraftStore((state) => state.restoreDraftSnapshot)
 
   return {
     groups: composeGroups(groups, addedGroups, removedGroupIds),
@@ -39,5 +41,7 @@ export const useGroupDraft = (groups = [], editionId) => {
         groups.some((group) => group.id === id),
       ),
     reset: () => resetStore(key),
+    save: () => saveSnapshot(key),
+    discard: () => restoreSnapshot(key),
   }
 }

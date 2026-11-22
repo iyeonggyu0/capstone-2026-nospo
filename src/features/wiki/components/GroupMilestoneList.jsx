@@ -84,11 +84,11 @@ const MilestoneEditRow = ({
           value={episode}
         />
         <div className="-mr-1 flex shrink-0 items-center text-label font-medium">
-          <button className="-my-0.5 min-h-11 px-1 text-blue-action" type="submit">
+          <button className="-my-0.5 min-h-11 min-w-9 px-1 text-blue-action" type="submit">
             저장
           </button>
           <button
-            className="-my-0.5 min-h-11 px-1 text-red-destructive"
+            className="-my-0.5 min-h-11 min-w-9 px-1 text-red-destructive"
             onClick={onCancel}
             type="button"
           >
@@ -143,7 +143,7 @@ const MilestoneItem = ({
         <div className="-mr-1 flex shrink-0 items-center text-label font-medium">
           <button
             aria-label={`${milestone.content} 편집`}
-            className="-my-0.5 min-h-11 px-1 text-teal-strong"
+            className="-my-0.5 min-h-11 min-w-9 px-1 text-teal-strong"
             onClick={onEdit}
             type="button"
           >
@@ -152,7 +152,7 @@ const MilestoneItem = ({
           {onRemove && (
             <button
               aria-label={`${milestone.content} 삭제`}
-              className="-my-0.5 min-h-11 px-1 text-red-destructive"
+              className="-my-0.5 min-h-11 min-w-9 px-1 text-red-destructive"
               onClick={() => onRemove(milestone.id)}
               type="button"
             >

@@ -72,14 +72,36 @@ describe('단체 API (개발 모의 응답)', () => {
     const { groupApi } = await import('./wiki')
 
     const list = await groupApi.list('e1')
-    const detail = await groupApi.detail('g1')
 
-    expect(list.items.length).toBeGreaterThan(0)
+    expect(list.items).toEqual([])
     expect(list.book.currentEpisode).toBe(32)
-    expect(detail.group.name).toBe('그리핀도르')
-    expect(detail.group.members.length).toBeGreaterThan(0)
     expect(list.personCount).toBeGreaterThan(0)
+    await expect(groupApi.detail('g1')).rejects.toMatchObject({ response: { status: 404 } })
     expect(apiClient.request).not.toHaveBeenCalled()
+  })
+
+  it('구성원으로 고를 인물 목록을 모의 응답으로 돌려준다', async () => {
+    vi.stubEnv('DEV', true)
+    const { apiClient } = await import('@/lib/api-client')
+    const { personApi } = await import('./wiki')
+
+    const { items } = await personApi.list('e1')
+
+    expect(items.length).toBeGreaterThan(0)
+    expect(items[0]).toMatchObject({ id: expect.any(String), name: expect.any(String) })
+    expect(apiClient.request).not.toHaveBeenCalled()
+  })
+
+  it('인물 목록은 현재 진도(positionValue)보다 뒤에 등장하는 인물을 뺀다', async () => {
+    vi.stubEnv('DEV', true)
+    const { personApi } = await import('./wiki')
+
+    const all = await personApi.list('e1')
+    const early = await personApi.list('e1', 2)
+
+    expect(early.items.length).toBeGreaterThan(0)
+    expect(early.items.length).toBeLessThan(all.items.length)
+    expect(early.items.every((person) => person.unlockEpisode <= 2)).toBe(true)
   })
 
   it('없는 단체는 404 오류를 던진다', async () => {

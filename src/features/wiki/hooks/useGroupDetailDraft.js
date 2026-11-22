@@ -15,7 +15,7 @@ const isSameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b)
  *   relations: object,
  *   milestones: Array,
  *   hasChanges: boolean,
- *   addMember: (name: string) => void,
+ *   addMember: (person: { id: string, name: string, unlockEpisode?: number }) => void,
  *   removeMember: (id: string) => void,
  *   addRelation: (name: string) => void,
  *   removeRelation: (id: string) => void,
@@ -40,18 +40,18 @@ export const useGroupDetailDraft = (group) => {
   const [milestones, setMilestones] = useState(initial.milestones)
   const lastDraftNumber = useRef(0)
 
-  /** 이름으로 구성원을 목록 끝에 추가한다. 이미 같은 이름이 있으면 추가하지 않는다. */
-  const addMember = (name) => {
-    const trimmed = name.trim()
-    const isDuplicate = members.some(
-      (member) => member.name.trim().toLowerCase() === trimmed.toLowerCase(),
-    )
-    if (!trimmed || isDuplicate) return
+  /** 인물 목록에서 고른 인물을 구성원 끝에 추가한다. 이미 구성원인 인물(같은 식별자)이면 추가하지 않는다. */
+  const addMember = (person) => {
+    if (!person?.id || members.some((member) => member.id === person.id)) return
 
-    lastDraftNumber.current += 1
     setMembers((previous) => [
       ...previous,
-      { id: `draft-member-${lastDraftNumber.current}`, name: trimmed, isDraft: true },
+      {
+        id: person.id,
+        name: person.name,
+        unlockEpisode: person.unlockEpisode,
+        isDraft: true,
+      },
     ])
   }
 

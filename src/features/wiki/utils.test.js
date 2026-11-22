@@ -2,17 +2,27 @@ import { describe, expect, it } from 'vitest'
 import {
   GROUP_NAME_MAX_LENGTH,
   MILESTONE_MAX_LENGTH,
+  applyWikiContext,
   composeGroups,
+  findPersonByName,
   formatSubmittedLabel,
+  getMemberCandidates,
+  getPositionValue,
   getReflectedLabel,
   getReviewStepId,
   getGroupDetailPath,
   getPersonRegisterPath,
+  getReviewProgressPath,
   getUnlockLabel,
   insertMilestoneLatest,
   moveItem,
   moveRelationItem,
+  readWikiContext,
   sortMilestonesLatest,
+  toWikiNavigationState,
+  applyDetailEdit,
+  isEmptyDetailEdit,
+  toDetailEdit,
   validateGroupName,
   validateMilestoneContent,
   validateUnlockEpisode,
@@ -153,13 +163,124 @@ describe('검수 진행 문구', () => {
 })
 
 describe('getPersonRegisterPath', () => {
-  it('판본 식별자가 있으면 쿼리로 함께 넘긴다', () => {
-    expect(getPersonRegisterPath('e1')).toBe('/wiki/register/person?editionId=e1')
+  it('도서 식별자가 있으면 인물 화면이 읽는 이름(bookId)의 쿼리로 함께 넘긴다', () => {
+    expect(getPersonRegisterPath('b1')).toBe('/wiki/register/person?bookId=b1')
   })
 
-  it.each([null, undefined, ''])('판본 식별자가 없으면(%j) 주소만 돌려준다', (editionId) => {
-    expect(getPersonRegisterPath(editionId)).toBe('/wiki/register/person')
+  it.each([null, undefined, ''])('도서 식별자가 없으면(%j) 주소만 돌려준다', (bookId) => {
+    expect(getPersonRegisterPath(bookId)).toBe('/wiki/register/person')
   })
+})
+
+describe('getPositionValue', () => {
+  it('숫자는 그대로, 객체는 value(또는 positionValue)를 돌려준다', () => {
+    expect(getPositionValue(32)).toBe(32)
+    expect(getPositionValue('32')).toBe(32)
+    expect(getPositionValue({ unit: 'EPISODE', value: 7 })).toBe(7)
+    expect(getPositionValue({ positionValue: 5 })).toBe(5)
+  })
+
+  it.each([undefined, null, '', 0, -1, 'abc', {}])('알 수 없는 값(%j)은 undefined다', (value) => {
+    expect(getPositionValue(value)).toBeUndefined()
+  })
+})
+
+describe('readWikiContext', () => {
+  const query = (text) => new URLSearchParams(text)
+
+  it('이동 때 넘긴 값(state)을 인물 화면과 같은 이름으로 읽는다', () => {
+    const state = { mode: 'CREATE', bookId: 'b1', position: 32, book: { title: '책' } }
+
+    expect(readWikiContext({ state, searchParams: query('') })).toEqual({
+      bookId: 'b1',
+      position: 32,
+      wikiMode: 'CREATE',
+      book: { title: '책' },
+    })
+  })
+
+  it('state가 없으면 쿼리(bookId, position, mode)에서 읽는다', () => {
+    const context = readWikiContext({ searchParams: query('bookId=b2&position=12&mode=update') })
+
+    expect(context).toMatchObject({ bookId: 'b2', position: 12, wikiMode: 'UPDATE' })
+  })
+
+  it('state가 쿼리보다 우선하고, 예전 쿼리 이름 editionId도 도서 식별자로 받는다', () => {
+    expect(
+      readWikiContext({ state: { bookId: 'b1' }, searchParams: query('bookId=b2') }).bookId,
+    ).toBe('b1')
+    expect(readWikiContext({ searchParams: query('editionId=e1') }).bookId).toBe('e1')
+  })
+
+  it('쿼리의 mode가 view·edit(화면 모드)이면 작성 방식으로 보지 않는다', () => {
+    expect(readWikiContext({ searchParams: query('mode=view') }).wikiMode).toBeUndefined()
+    expect(readWikiContext({ searchParams: query('mode=edit') }).wikiMode).toBeUndefined()
+  })
+
+  it('아무 값도 없으면 도서 식별자는 null이고 나머지는 비어 있다', () => {
+    expect(readWikiContext()).toEqual({
+      bookId: null,
+      position: undefined,
+      wikiMode: undefined,
+      book: undefined,
+    })
+  })
+})
+
+describe('toWikiNavigationState', () => {
+  it('값이 있는 항목만 인물 화면이 읽는 이름으로 담는다', () => {
+    expect(
+      toWikiNavigationState({ bookId: 'b1', position: 32, wikiMode: 'CREATE', book: { id: 1 } }),
+    ).toEqual({ mode: 'CREATE', book: { id: 1 }, bookId: 'b1', position: 32 })
+    expect(toWikiNavigationState({ bookId: 'b1', wikiMode: undefined })).toEqual({ bookId: 'b1' })
+    expect(toWikiNavigationState()).toEqual({})
+  })
+})
+
+describe('applyWikiContext', () => {
+  const book = {
+    title: '책',
+    currentEpisode: 32,
+    progressLabel: '32화까지 읽음',
+    editLabel: '32화 수정',
+    episodeUnit: '화',
+  }
+
+  it('넘어온 진도로 현재 진도와 안내 문구를 다시 만든다', () => {
+    expect(applyWikiContext(book, { position: 40, wikiMode: 'CREATE' })).toMatchObject({
+      currentEpisode: 40,
+      progressLabel: '40화까지 읽음',
+      editLabel: '40화 등록',
+    })
+    expect(applyWikiContext(book, { position: { value: 7 } }).editLabel).toBe('7화 수정')
+  })
+
+  it('권·장 진도는 권·장 문구로 보여준다', () => {
+    const result = applyWikiContext(book, { position: { value: 7, volume: 2, chapter: 7 } })
+
+    expect(result.progressLabel).toBe('2권 7장까지 읽음')
+    expect(result.editLabel).toBe('2권 7장 수정')
+  })
+
+  it('진도가 없거나 도서 정보가 없으면 받은 값을 그대로 돌려준다', () => {
+    expect(applyWikiContext(book, {})).toBe(book)
+    expect(applyWikiContext(book)).toBe(book)
+    expect(applyWikiContext(undefined, { position: 40 })).toBeUndefined()
+  })
+})
+
+describe('getReviewProgressPath', () => {
+  it('신청 식별자를 붙인 검수 진행 화면 주소를 만든다', () => {
+    expect(getReviewProgressPath('proposal-1')).toBe('/wiki/reviews/proposal-1')
+    expect(getReviewProgressPath('a b')).toBe('/wiki/reviews/a%20b')
+  })
+
+  it.each([null, undefined, ''])(
+    '신청 식별자가 없으면(%j) 검수 목록 주소를 돌려준다',
+    (reviewId) => {
+      expect(getReviewProgressPath(reviewId)).toBe('/wiki/reviews')
+    },
+  )
 })
 
 describe('getUnlockLabel', () => {
@@ -256,5 +377,166 @@ describe('sortMilestonesLatest / insertMilestoneLatest', () => {
     })
 
     expect(result.map((item) => item.id)).toEqual(['a', 'n'])
+  })
+})
+
+describe('getMemberCandidates / findPersonByName', () => {
+  const persons = [
+    { id: 'p1', name: '서하준' },
+    { id: 'p2', name: '김민솔' },
+    { id: 'p3', name: 'Alice' },
+  ]
+
+  it('이미 구성원인 인물은 후보에서 뺀다', () => {
+    const candidates = getMemberCandidates(persons, [{ id: 'p2', name: '김민솔' }])
+
+    expect(candidates.map((person) => person.id)).toEqual(['p1', 'p3'])
+  })
+
+  it('현재 진도보다 뒤에 등장하는 인물은 후보에서 뺀다', () => {
+    const withEpisodes = [
+      { id: 'p1', name: '서하준', unlockEpisode: 1 },
+      { id: 'p2', name: '김민솔', unlockEpisode: 33 },
+      { id: 'p3', name: '구교승' },
+    ]
+
+    expect(getMemberCandidates(withEpisodes, [], 32).map((person) => person.id)).toEqual([
+      'p1',
+      'p3',
+    ])
+    expect(getMemberCandidates(withEpisodes, [], 33).map((person) => person.id)).toEqual([
+      'p1',
+      'p2',
+      'p3',
+    ])
+    expect(getMemberCandidates(withEpisodes, []).length).toBe(3)
+  })
+
+  it('인물이나 구성원이 없어도 오류 없이 빈 후보를 돌려준다', () => {
+    expect(getMemberCandidates()).toEqual([])
+    expect(getMemberCandidates(persons).length).toBe(3)
+  })
+
+  it('검색어와 이름이 같은 인물을 찾고, 공백과 대소문자는 무시한다', () => {
+    expect(findPersonByName(persons, ' 서하준 ')?.id).toBe('p1')
+    expect(findPersonByName(persons, 'alice')?.id).toBe('p3')
+  })
+
+  it('이름이 다르거나 검색어가 비면 찾지 않는다(일부만 일치해도 안 됨)', () => {
+    expect(findPersonByName(persons, '서하')).toBeUndefined()
+    expect(findPersonByName(persons, '   ')).toBeUndefined()
+    expect(findPersonByName(persons, '')).toBeUndefined()
+    expect(findPersonByName()).toBeUndefined()
+  })
+})
+
+describe('toDetailEdit / applyDetailEdit (서버 데이터를 복사하지 않는 임시 저장)', () => {
+  const base = {
+    members: [
+      { id: 'p1', name: '서하준', unlockEpisode: 1 },
+      { id: 'p2', name: '김민솔', unlockEpisode: 3 },
+    ],
+    relations: {
+      friendly: [{ id: 'g2', name: '래번클로', scale: '중', memberCount: 9 }],
+      hostile: [{ id: 'g4', name: '슬리데린', scale: '대', memberCount: 11 }],
+    },
+    milestones: [
+      { id: 'm1', content: '첫 출항', unlockEpisode: 4 },
+      { id: 'm2', content: '낡은 지도를 발견', unlockEpisode: 7 },
+    ],
+  }
+  /** 상세 화면이 처음에 보여주는 상태(행적은 최신순)다. */
+  const untouched = {
+    members: base.members,
+    relations: base.relations,
+    milestones: [base.milestones[1], base.milestones[0]],
+  }
+  const roundTrip = (current) => applyDetailEdit(base, toDetailEdit(base, current))
+
+  it('손대지 않았으면 편집이 비어 있다고 본다', () => {
+    expect(isEmptyDetailEdit(toDetailEdit(base, untouched), base)).toBe(true)
+  })
+
+  it('편집분에는 서버 항목의 내용이 들어가지 않고 식별자만 남는다', () => {
+    const edit = JSON.stringify(toDetailEdit(base, untouched))
+
+    expect(edit).not.toContain('서하준')
+    expect(edit).not.toContain('래번클로')
+    expect(edit).not.toContain('낡은 지도를 발견')
+    expect(edit).toContain('p1')
+  })
+
+  it('새로 추가한 항목은 내용까지 저장하고, 되살리면 서버 항목 뒤에 이어진다', () => {
+    const added = { id: 'p9', name: '새 인물', unlockEpisode: 2 }
+    const edit = toDetailEdit(base, { ...untouched, members: [...base.members, added] })
+
+    expect(edit.members.added).toEqual([added])
+    expect(roundTrip({ ...untouched, members: [...base.members, added] }).members).toEqual([
+      ...base.members,
+      added,
+    ])
+    expect(isEmptyDetailEdit(edit, base)).toBe(false)
+  })
+
+  it('지운 서버 항목은 식별자만 기억해 두고, 되살려도 다시 나타나지 않는다', () => {
+    const current = { ...untouched, members: [base.members[0]] }
+
+    expect(toDetailEdit(base, current).members.removed).toEqual(['p2'])
+    expect(roundTrip(current).members).toEqual([base.members[0]])
+  })
+
+  it('순서를 바꾼 것을 되살린다', () => {
+    const current = { ...untouched, members: [base.members[1], base.members[0]] }
+
+    expect(roundTrip(current).members.map((item) => item.id)).toEqual(['p2', 'p1'])
+  })
+
+  it('관계 단체를 다른 구역으로 옮긴 것과 새로 추가한 것을 되살린다', () => {
+    const added = { id: 'draft-relation-1', name: '새 단체', isDraft: true }
+    const current = {
+      ...untouched,
+      relations: {
+        friendly: [added],
+        hostile: [base.relations.friendly[0], base.relations.hostile[0]],
+      },
+    }
+
+    const result = roundTrip(current)
+
+    expect(result.relations.friendly).toEqual([added])
+    expect(result.relations.hostile.map((item) => item.id)).toEqual(['g2', 'g4'])
+  })
+
+  it('서버 행적을 고치면 고친 내용만 저장하고, 되살릴 때 서버 항목에 덮어쓴다', () => {
+    const edited = { ...base.milestones[0], content: '수정한 행적', unlockEpisode: 5 }
+    const current = { ...untouched, milestones: [base.milestones[1], edited] }
+    const edit = toDetailEdit(base, current)
+
+    expect(edit.milestones.changed).toEqual({ m1: { content: '수정한 행적', unlockEpisode: 5 } })
+    expect(roundTrip(current).milestones.find((item) => item.id === 'm1')).toMatchObject({
+      content: '수정한 행적',
+      unlockEpisode: 5,
+    })
+  })
+
+  it('저장한 뒤 서버에 새로 생긴 항목은 목록 끝에 붙는다', () => {
+    const edit = toDetailEdit(base, { ...untouched, members: [base.members[0]] })
+    const newerServer = {
+      ...base,
+      members: [...base.members, { id: 'p5', name: '서버에 새로 생긴 인물' }],
+    }
+
+    expect(applyDetailEdit(newerServer, edit).members.map((item) => item.id)).toEqual(['p1', 'p5'])
+  })
+
+  it('편집이 없거나 모양이 맞지 않으면 서버 내용을 그대로 쓴다', () => {
+    const result = applyDetailEdit(base, undefined)
+
+    expect(result.members).toEqual(base.members)
+    expect(result.milestones).toEqual(base.milestones)
+    expect(result.relations).toEqual(base.relations)
+    expect(
+      applyDetailEdit(base, { members: [{ id: 'p9' }], relations: {}, milestones: [] }).members,
+    ).toBe(base.members)
   })
 })
