@@ -475,3 +475,25 @@ export const isEmptyDetailEdit = (edit, base) =>
     // 상세 화면은 행적을 처음에 최신순으로 정렬해 보여주므로, 손대지 않은 상태의 기준도 최신순이다.
     milestones: sortMilestonesLatest(base?.milestones ?? []),
   })
+
+/**
+ * 위키 내용(보기)의 단체 상세 화면으로 이동하는 주소를 만든다. 단체 식별자는 쿼리(`?groupId=`)로 전달하고 특수문자는 안전하게 인코딩한다.
+ *
+ * @param {string | number} groupId 상세 화면에서 보여줄 단체 식별자
+ * @returns {string} 예: `/wiki/view/group/detail?groupId=g1`
+ */
+export const getGroupViewDetailPath = (groupId) =>
+  `${ROUTES.WIKI_VIEW_GROUP_DETAIL}?${new URLSearchParams({ groupId: String(groupId) })}`
+
+/**
+ * 현재 진도보다 뒤에 등장하는(아직 열리지 않은) 항목을 뺀 새 목록을 돌려준다.
+ * 보기 화면은 열리지 않은 정보의 내용이나 존재 힌트를 보여주지 않아야 한다. 등장 회차를 모르는 항목은 서버가 이미 거른 것으로 보고 남긴다.
+ *
+ * @param {Array<{ unlockEpisode?: number }>} [items=[]] 구성원이나 주요 행적 목록
+ * @param {number} [maxEpisode] 현재 진도(읽은 회차). 없으면 거르지 않는다.
+ * @returns {Array} 열린 항목만 담은 목록
+ */
+export const filterUnlocked = (items = [], maxEpisode) =>
+  maxEpisode == null
+    ? items
+    : items.filter((item) => item.unlockEpisode == null || item.unlockEpisode <= maxEpisode)

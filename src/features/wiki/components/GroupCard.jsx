@@ -3,7 +3,7 @@ import chevronRightSmall from '@/assets/icons/wiki/chevron-right-small.svg'
 import { getGroupDetailPath } from '../utils'
 
 /** 단체 이미지를 보여주고, 이미지가 없으면 글자 없이 연한 빈 상자로 자리를 채운다. */
-const GroupImage = ({ imageUrl }) => {
+export const GroupImage = ({ imageUrl }) => {
   if (imageUrl) {
     return <img className="aspect-square w-full rounded-xl object-cover" src={imageUrl} alt="" />
   }

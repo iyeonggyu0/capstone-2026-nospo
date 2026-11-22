@@ -24,3 +24,16 @@ export const REVIEW_STATUS_STEP = {
 
 /** 제출 직후(관리자 검토 대기) 단계에서만 보여주는 안내 문구다. */
 export const REVIEW_SUBMITTED_NOTICE = '제출이 되었어요! 검수가 끝나면 토큰이 지급될 예정입니다.'
+
+/** 단체 목록 상단의 보상 안내 문구다. 편집 화면과 보기 화면이 함께 쓴다. */
+export const REWARD_NOTICE = '검수 승인 시 AI 토큰 최대 10개를 보상으로 드려요.'
+
+/** 단체 목록 상단의 진도 변경 안내 문구다. 편집 화면과 보기 화면이 함께 쓴다. */
+export const PROGRESS_HINT = '현재 읽은 범위까지 진도를 변경하고, 수정할 수 있어요.'
+
+/** 단체 상세 화면의 탭 목록이다. 편집 화면과 보기 화면이 함께 쓴다. */
+export const TAB_OPTIONS = [
+  { value: 'members', label: '구성원' },
+  { value: 'relations', label: '관계' },
+  { value: 'milestones', label: '주요 행적' },
+]

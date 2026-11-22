@@ -8,6 +8,8 @@ import { useGroupDraftStore } from '../store'
 import { toDetailEdit } from '../utils'
 import { GroupDetailContainer } from './GroupDetailContainer'
 import { GroupListContainer } from './GroupListContainer'
+import { GroupViewDetailContainer } from './GroupViewDetailContainer'
+import { GroupViewListContainer } from './GroupViewListContainer'
 
 // 서버 렌더링은 Zustand 스토어의 '처음 상태'만 읽으므로, 이 파일에서는 스토어를 현재 상태를 읽는 대역으로 바꿔 끼운다.
 vi.mock('../store', async (importOriginal) => {
@@ -110,6 +112,144 @@ describe('GroupListContainer', () => {
 
     expect(html).toContain('40화까지 읽음')
     expect(html).not.toContain('32화까지 읽음')
+  })
+})
+
+describe('GroupViewListContainer (위키 내용 보기)', () => {
+  it('서버에 올라간 단체를 보기 목록으로 보여주고 편집 컨트롤은 없다', async () => {
+    const html = await renderContainer(<GroupViewListContainer />, seedList)
+
+    expect(html).toContain('애주가의 절주 일기')
+    expect(html).toContain('그리핀도르')
+    expect(html).toContain('href="/wiki/view/group/detail?groupId=g1"')
+    expect(html).toContain('href="/wiki/register/group/detail?groupId=g1&amp;mode=edit"')
+    expect(html).not.toContain('삭제')
+    expect(html).not.toContain('검수 제출')
+  })
+
+  it('편집 화면에서 임시로 추가한 단체는 보기 목록에 섞이지 않는다', async () => {
+    useGroupDraftStore.getState().addGroup('default', { name: '임시 단체', unlockEpisode: 1 })
+
+    const html = await renderContainer(<GroupViewListContainer />, seedList)
+
+    expect(html).not.toContain('임시 단체')
+    useGroupDraftStore.setState(useGroupDraftStore.getInitialState(), true)
+  })
+
+  it('데이터를 받기 전에는 로딩 상태를 보여준다', async () => {
+    const html = await renderContainer(<GroupViewListContainer />)
+
+    expect(html).toContain('단체 목록을 불러오는 중이에요.')
+  })
+
+  it('이동 때 넘어온 진도가 있으면 그 값으로 진도 문구를 보여준다', async () => {
+    const html = await renderContainer(<GroupViewListContainer position={40} />, seedList)
+
+    expect(html).toContain('40화까지 읽음')
+    expect(html).not.toContain('32화까지 읽음')
+  })
+})
+
+describe('GroupViewDetailContainer (위키 내용 보기)', () => {
+  /** 현재 진도(32화)보다 뒤에 등장하는 구성원이 섞인 단체 상세를 캐시에 넣는다. */
+  const seedWithLocked = (client) =>
+    client.setQueryData(groupQueryKeys.detail('g1'), {
+      book: fixtureBook,
+      group: {
+        ...fixtureGroup,
+        members: [
+          { id: 'p1', name: '서하준', unlockEpisode: 1 },
+          { id: 'p7', name: '아직 모르는 인물', unlockEpisode: 40 },
+        ],
+      },
+    })
+
+  it('단체 정보와 현재 진도를 읽기 전용으로 보여준다', async () => {
+    const html = await renderContainer(<GroupViewDetailContainer groupId="g1" />, seedDetail('g1'))
+
+    expect(html).toContain('그리핀도르')
+    expect(html).toContain('32화 수정')
+    expect(html).toContain('서하준')
+    expect(html).not.toContain('인물 검색')
+    expect(html).not.toContain('검수 제출')
+    expect(html).not.toContain('임시 저장')
+  })
+
+  it('가린 구성원 수만큼 인원에서도 빼서 숨은 인원 수가 드러나지 않게 한다', async () => {
+    const seedCounted = (client) =>
+      client.setQueryData(groupQueryKeys.detail('g1'), {
+        book: fixtureBook,
+        group: {
+          ...fixtureGroup,
+          memberCount: 3,
+          members: [
+            { id: 'p1', name: '서하준', unlockEpisode: 1 },
+            { id: 'p2', name: '배서현', unlockEpisode: 3 },
+            { id: 'p7', name: '아직 모르는 인물', unlockEpisode: 40 },
+          ],
+        },
+      })
+
+    const html = await renderContainer(<GroupViewDetailContainer groupId="g1" />, seedCounted)
+
+    expect(html).toContain('2명')
+    expect(html).not.toContain('3명')
+  })
+
+  it('현재 진도보다 뒤에 등장하는 구성원은 이름도 보이지 않는다', async () => {
+    const html = await renderContainer(<GroupViewDetailContainer groupId="g1" />, seedWithLocked)
+
+    expect(html).toContain('서하준')
+    expect(html).not.toContain('아직 모르는 인물')
+  })
+
+  it('이동 때 넘어온 진도를 낮추면 그 진도 기준으로 더 많이 가린다', async () => {
+    const seedEarly = (client) =>
+      client.setQueryData(groupQueryKeys.detail('g1'), {
+        book: fixtureBook,
+        group: {
+          ...fixtureGroup,
+          members: [{ id: 'p5', name: '5화에 등장하는 인물', unlockEpisode: 5 }],
+        },
+      })
+
+    const atThree = await renderContainer(
+      <GroupViewDetailContainer groupId="g1" position={3} />,
+      seedEarly,
+    )
+    const atFive = await renderContainer(
+      <GroupViewDetailContainer groupId="g1" position={5} />,
+      seedEarly,
+    )
+
+    expect(atThree).not.toContain('5화에 등장하는 인물')
+    expect(atFive).toContain('5화에 등장하는 인물')
+  })
+
+  it('이동 때 넘어온 진도와 작성 방식으로 배지 문구를 만든다', async () => {
+    const html = await renderContainer(
+      <GroupViewDetailContainer groupId="g1" position={40} wikiMode="CREATE" />,
+      seedDetail('g1'),
+    )
+
+    expect(html).toContain('40화 등록')
+  })
+
+  it('서버에 없는 단체(임시 초안 포함)는 찾을 수 없음과 돌아가기 버튼을 보여준다', async () => {
+    const html = await renderContainer(
+      <GroupViewDetailContainer groupId="draft-1" onBack={() => {}} />,
+      prefetchDetail('draft-1'),
+    )
+
+    expect(html).toContain('단체를 찾을 수 없어요.')
+    expect(html).toContain('돌아가기')
+  })
+
+  it('식별자가 없으면 찾을 수 없음, 조회 전에는 로딩 상태를 보여준다', async () => {
+    expect(await renderContainer(<GroupViewDetailContainer />)).toContain('단체를 찾을 수 없어요.')
+    expect(await renderContainer(<GroupViewDetailContainer groupId="g1" />)).toContain(
+      '단체 정보를 불러오는 중이에요.',
+    )
   })
 })
 

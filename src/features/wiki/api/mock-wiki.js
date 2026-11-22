@@ -18,9 +18,9 @@ const groups = []
 
 /** 모의 인물 목록이다. 인물 수는 이 목록의 길이로 정하며, 단체 구성원은 여기서 골라 추가한다. 이름은 모두 예시다. */
 const persons = [
-  { id: 'p1', name: '서하준', unlockEpisode: 1 },
-  { id: 'p2', name: '김민솔', unlockEpisode: 3 },
-  { id: 'p3', name: '구교승', unlockEpisode: 7 },
+  { id: 'p1', name: '이영규', unlockEpisode: 1 },
+  { id: 'p2', name: '배서현', unlockEpisode: 3 },
+  { id: 'p3', name: '김민솔', unlockEpisode: 7 },
 ]
 
 /** 단체 식별자별 모의 상세 정보(구성원·관계·주요 행적)다. 미리 채워 둔 구성원 없이 비어 있다. */
