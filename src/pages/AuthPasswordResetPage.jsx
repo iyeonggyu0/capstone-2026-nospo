@@ -11,7 +11,11 @@ import { authApi, authError, isAuthMock, useAuth } from '@/features/auth'
 const AuthPasswordResetPage = () => {
   const navigate = useNavigate()
   const { search } = useLocation()
-  const loginPath = `${ROUTES.AUTH_LOGIN}${isAuthMock ? search : ''}`
+  const loginPath = `${ROUTES.AUTH_LOGIN}${isAuthMock ? '?preview' : ''}`
+  const backPath =
+    new URLSearchParams(search).get('from') === 'profile'
+      ? `${ROUTES.MY_PROFILE}${isAuthMock ? '?preview' : ''}`
+      : loginPath
   const clearSession = useAuth((state) => state.clearSession)
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -127,7 +131,7 @@ const AuthPasswordResetPage = () => {
       <Header
         variant="back"
         title="비밀번호 변경"
-        onBack={() => (step === 'password' ? setStep('verify') : navigate(loginPath))}
+        onBack={() => (step === 'password' ? setStep('verify') : navigate(backPath))}
       />
       <form className="flex flex-1 flex-col px-5 pb-5" onSubmit={next} noValidate>
         {step === 'verify' && (

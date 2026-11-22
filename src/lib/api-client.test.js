@@ -115,6 +115,19 @@ it('재발급 중 네트워크 오류가 나면 현재 세션을 유지한다', 
   expect(apiClient.defaults.headers.common.Authorization).toBe('Bearer current')
 })
 
+it('재인증 비밀번호가 틀리면 토큰을 갱신하거나 로그아웃하지 않는다', async () => {
+  const onExpired = vi.fn()
+  const refresh = vi.spyOn(axios, 'post')
+  setAuthenticationExpiredHandler(onExpired)
+  const error = {
+    response: { status: 401, data: { error: { code: 'INVALID_CREDENTIALS' } } },
+    config: { url: '/v1/me/reauth/password', _skipAuthRefresh: true },
+  }
+  await expect(apiClient.interceptors.response.handlers[0].rejected(error)).rejects.toBe(error)
+  expect(refresh).not.toHaveBeenCalled()
+  expect(onExpired).not.toHaveBeenCalled()
+})
+
 it('이전 계정의 늦은 인증 실패는 새 계정을 로그아웃하지 않는다', async () => {
   const onExpired = vi.fn()
   setAuthenticationExpiredHandler(onExpired)
