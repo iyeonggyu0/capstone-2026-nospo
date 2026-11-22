@@ -38,6 +38,26 @@ it('개발 미리보기 상태는 주소가 바뀌어도 유지하고 운영에�
   ).toContain('false')
 })
 
+it('기록 화면은 이전 미리보기 상태가 있어도 주소에 preview가 없으면 인증을 확인한다', () => {
+  state.preview = true
+  vi.stubEnv('DEV', true)
+  const Check = () => <span>{String(useIsLoggedIn({ persistPreview: false }))}</span>
+  expect(
+    renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/reading']}>
+        <Check />
+      </MemoryRouter>,
+    ),
+  ).toContain('false')
+  expect(
+    renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/reading?preview']}>
+        <Check />
+      </MemoryRouter>,
+    ),
+  ).toContain('true')
+})
+
 it.each([
   [true, '/home?preview', 'true'],
   [true, '/home', 'false'],

@@ -10,6 +10,7 @@ export const Header = ({
   rightContent,
   onBack,
   compact = false,
+  hideLogo = false,
 }) => {
   const showBack = variant === 'back' || showBackButton
 
@@ -48,9 +49,9 @@ export const Header = ({
             <h1 className="text-title leading-7 font-bold text-text-primary">{title}</h1>
             {subtitle && <p className="text-caption leading-4 text-text-secondary">{subtitle}</p>}
           </>
-        ) : (
+        ) : !hideLogo ? (
           <Logo />
-        )}
+        ) : null}
       </div>
       {rightContent && (
         <div className="shrink-0 text-label leading-[18px] font-medium text-text-secondary">

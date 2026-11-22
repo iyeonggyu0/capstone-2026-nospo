@@ -62,7 +62,12 @@ export const refreshAccessToken = () => {
 // 인증 요청은 재시도하지 않고, 보호된 요청의 만료 토큰만 한 번 갱신한다.
 apiClient.interceptors.response.use(undefined, async (error) => {
   const request = error.config
-  if (error.response?.status !== 401 || !request || request.url?.startsWith('/v1/auth/')) {
+  if (
+    error.response?.status !== 401 ||
+    !request ||
+    (request._skipAuthRefresh && error.response?.data?.error?.code === 'INVALID_CREDENTIALS') ||
+    request.url?.startsWith('/v1/auth/')
+  ) {
     return Promise.reject(error)
   }
   const generation = request._sessionGeneration ?? sessionGeneration
