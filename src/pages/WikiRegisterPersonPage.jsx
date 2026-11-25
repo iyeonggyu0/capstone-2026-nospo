@@ -2,10 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/common-ui'
+import { ROUTES } from '@/constants/routes'
 import {
   createWikiCharacter,
+  createWikiCharacterEntry,
+  createWikiCharacterProfile,
   createWikiDraft,
+  deletePersonDraft,
   getPersonImage,
+  getWikiOrganizations,
   restorePersonDraft,
   storePersonDraft,
   storePersonImage,
@@ -102,6 +107,7 @@ const getDraftStorageKey = (bookId, mode = 'UPDATE') =>
   mode === 'CREATE'
     ? `nospo:wiki-person-draft:create:${bookId ?? 'preview'}`
     : `nospo:wiki-person-draft:${bookId ?? 'preview'}`
+const makeLocalPersonId = () => `local-${Date.now()}`
 
 const emptyPerson = (revealAt = 1) => ({
   name: '',
@@ -110,6 +116,7 @@ const emptyPerson = (revealAt = 1) => ({
   role: '',
   personality: '',
   firstRevealAt: revealAt,
+  revealAt,
   imageUrl: '',
 })
 
@@ -120,16 +127,34 @@ const getPositionValue = (position) => {
   return 1
 }
 
-const toApiPosition = (position, fallbackValue = 1) =>
+const getPositionUnit = (position, book) => {
+  if (typeof position === 'object' && position?.unit) {
+    return position.unit === 'PAGE' ? 'PAGE' : 'EPISODE'
+  }
+  const sourceUnit = book.progressUnit ?? book.unit
+  if (sourceUnit === 'PAGE' || sourceUnit === '쪽' || sourceUnit === '페이지') return 'PAGE'
+  return 'EPISODE'
+}
+
+const getPositionUnitLabel = (unit) => ({ EPISODE: '화', PAGE: '쪽' })[unit] ?? unit ?? '화'
+
+const getMaximumPosition = (book, unit) => {
+  const total = unit === 'PAGE' ? book.totalPages : book.totalEpisodes
+  return Number(book.totalPositions ?? total ?? book.totalCount) || undefined
+}
+
+const toApiPosition = (position, fallbackValue = 1, unit = 'EPISODE') =>
   position && typeof position === 'object'
     ? position
-    : { unit: 'EPISODE', value: Number(position) || fallbackValue }
+    : { unit, value: Number(position) || fallbackValue }
 
 const getPositionLabel = (position, mode) => {
   const action = mode === 'CREATE' ? '등록' : '수정'
   const volume = position?.volume ?? position?.volumeNumber
   const chapter = position?.chapter ?? position?.chapterNumber
-  const label = volume && chapter ? `${volume}권 ${chapter}장` : `${getPositionValue(position)}화`
+  const unitLabel = getPositionUnitLabel(position?.unit ?? 'EPISODE')
+  const label =
+    volume && chapter ? `${volume}권 ${chapter}장` : `${getPositionValue(position)}${unitLabel}`
   return `${label} ${action}`
 }
 
@@ -162,42 +187,90 @@ const WikiRegisterPersonPage = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const params = useMemo(() => new URLSearchParams(location.search), [location.search])
-  const book = location.state?.book ?? {}
+  const book = useMemo(() => location.state?.book ?? {}, [location.state?.book])
   const bookId = location.state?.bookId ?? params.get('bookId')
-  const mode = location.state?.mode ?? params.get('mode') ?? 'UPDATE'
+  const isAddPersonRoute = location.pathname === ROUTES.WIKI_ADD_PERSON
+  const mode =
+    location.state?.mode ?? params.get('mode') ?? (isAddPersonRoute ? 'CREATE' : 'UPDATE')
+  const isCreatingPerson = location.state?.createPerson ?? isAddPersonRoute
   const isWikiCreation = mode === 'CREATE'
-  const position =
+  const initialPosition =
     location.state?.position ?? Number(params.get('position') || (import.meta.env.DEV ? 32 : 1))
+  const [position, setPosition] = useState(initialPosition)
+  const [positionUnit, setPositionUnit] = useState(() => getPositionUnit(initialPosition, book))
+  const [positionDialogOpen, setPositionDialogOpen] = useState(false)
+  const [positionInput, setPositionInput] = useState(String(getPositionValue(initialPosition)))
+  const [positionUnitInput, setPositionUnitInput] = useState(() =>
+    getPositionUnit(initialPosition, book),
+  )
   const positionValue = getPositionValue(position)
+  const positionUnitLabel = getPositionUnitLabel(positionUnit)
   const positionLabel = getPositionLabel(position, mode)
   const previewUrls = useRef(new Set())
   const [people, setPeople] = useState(() => {
     if (isWikiCreation) return []
     return import.meta.env.DEV && !bookId ? previewPeople : []
   })
-  const [modal, setModal] = useState(null)
+  const [isDraftLoaded, setIsDraftLoaded] = useState(false)
+  const [modal, setModal] = useState(isCreatingPerson ? 'create' : null)
   const [form, setForm] = useState(emptyPerson(positionValue))
   const [selectedTab, setSelectedTab] = useState('EVENT')
-  const [selectedCategory, setSelectedCategory] = useState('CHARACTER')
-  const [activePersonId, setActivePersonId] = useState(null)
+  const [activePersonId, setActivePersonId] = useState(location.state?.personId ?? null)
   const [query, setQuery] = useState('')
-  const [organizations, setOrganizations] = useState([])
+  const [organizations, setOrganizations] = useState([
+    { id: null, name: '그리핀도르' },
+    { id: null, name: '슬리데린' },
+    { id: null, name: '래번클로' },
+    { id: null, name: '후플푸프' },
+  ])
+  const [showAbilities, setShowAbilities] = useState(true)
   const [notice, setNotice] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [entryDraft, setEntryDraft] = useState(null)
+  const [relationDraft, setRelationDraft] = useState(null)
+
+  useEffect(() => {
+    const requestedPersonId = location.state?.personId
+    if (!requestedPersonId && !isCreatingPerson) {
+      navigate(ROUTES.WIKI_ADD_PAGE, { replace: true, state: { mode, book, bookId, position } })
+    }
+  }, [
+    location.state?.personId,
+    location.state?.createPerson,
+    isCreatingPerson,
+    navigate,
+    mode,
+    book,
+    bookId,
+    position,
+  ])
 
   useEffect(() => {
     let cancelled = false
     const objectUrls = previewUrls.current
     restorePersonDraft(getDraftStorageKey(bookId, mode))
-      .then((savedPeople) => {
-        if (!cancelled && savedPeople) {
-          savedPeople.forEach((person) => {
+      .then((savedDraft) => {
+        if (!cancelled && savedDraft) {
+          savedDraft.people.forEach((person) => {
             if (person.imageUrl) objectUrls.add(person.imageUrl)
           })
-          setPeople(savedPeople)
+          setPeople(savedDraft.people)
+          if (savedDraft.position) {
+            setPosition(savedDraft.position)
+            setPositionInput(String(getPositionValue(savedDraft.position)))
+          }
+          if (savedDraft.positionUnit) {
+            setPositionUnit(savedDraft.positionUnit)
+            setPositionUnitInput(savedDraft.positionUnit)
+          }
         }
+        if (!cancelled) setIsDraftLoaded(true)
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setIsDraftLoaded(true)
+      })
     return () => {
       cancelled = true
       objectUrls.forEach((url) => URL.revokeObjectURL(url))
@@ -205,13 +278,65 @@ const WikiRegisterPersonPage = () => {
     }
   }, [bookId, mode])
 
-  const activePerson = people.find((person) => person.id === activePersonId)
+  useEffect(() => {
+    if (import.meta.env.VITE_WIKI_API_MODE !== 'api' || !bookId || mode !== 'UPDATE') return
+    let active = true
+    getWikiOrganizations({ bookId, positionValue, limit: 100 })
+      .then((page) => {
+        if (active) {
+          setOrganizations(
+            (page?.items ?? []).map((item) => ({
+              id: item.entityId ?? item.organizationId,
+              name: item.name,
+            })),
+          )
+        }
+      })
+      .catch(() => {
+        if (active) setNotice('단체 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.')
+      })
+    return () => {
+      active = false
+    }
+  }, [bookId, positionValue, mode])
+
+  useEffect(() => {
+    if (!isDraftLoaded) return
+    const savedPeople = people.map((person) => {
+      const savedPerson = { ...person }
+      delete savedPerson.imageUrl
+      return savedPerson
+    })
+    storePersonDraft(getDraftStorageKey(bookId, mode), {
+      position,
+      positionUnit,
+      people: savedPeople,
+    }).catch(() => {})
+  }, [people, position, positionUnit, bookId, mode, isDraftLoaded])
+
+  const sourcePerson = people.find((person) => person.id === activePersonId)
+  const activeProfile = sourcePerson?.profiles
+    ?.filter((profile) => Number(profile.revealAt) <= positionValue)
+    .sort((a, b) => Number(b.revealAt) - Number(a.revealAt))[0]
+  const activePerson =
+    sourcePerson && activeProfile
+      ? {
+          ...sourcePerson,
+          ...activeProfile,
+          id: sourcePerson.id,
+          firstRevealAt: sourcePerson.firstRevealAt,
+        }
+      : sourcePerson
+  const maximumPosition = getMaximumPosition(book, positionUnitInput)
   const openCreate = () => {
-    setForm(emptyPerson(import.meta.env.DEV && !bookId ? 2 : positionValue))
+    setForm(emptyPerson(positionValue))
     setModal('create')
   }
   const openEdit = (person) => {
-    setForm({ ...person })
+    const profile = [...(person.profiles ?? [])]
+      .filter((item) => Number(item.revealAt) <= positionValue)
+      .sort((a, b) => Number(b.revealAt) - Number(a.revealAt))[0]
+    setForm({ ...person, ...(profile ?? {}), revealAt: profile?.revealAt ?? person.firstRevealAt })
     setModal('edit')
   }
   const closeModal = () => {
@@ -219,11 +344,18 @@ const WikiRegisterPersonPage = () => {
     setQuery('')
   }
   const updateField = (name, value) => setForm((current) => ({ ...current, [name]: value }))
-  const addOrganization = () => {
-    const value = query.trim()
+  const addOrganization = (searchValue = query) => {
+    const value = typeof searchValue === 'string' ? searchValue.trim() : searchValue.name
     if (!value) return
-    setOrganizations((items) => (items.includes(value) ? items : [...items, value]))
+    const organization =
+      typeof searchValue === 'object'
+        ? searchValue
+        : (organizations.find((item) => item.name === value) ?? { id: null, name: value })
+    setOrganizations((items) =>
+      items.some((item) => item.name === value) ? items : [...items, organization],
+    )
     updateField('affiliation', value)
+    updateField('organizationId', organization.id)
     setQuery('')
   }
   const savePerson = (event) => {
@@ -232,21 +364,49 @@ const WikiRegisterPersonPage = () => {
       setNotice('이름을 입력해 주세요.')
       return
     }
+    if (Number(form.revealAt) > positionValue) {
+      setNotice(`기준 회차는 읽은 지점 ${positionValue}${positionUnitLabel}보다 뒤일 수 없어요.`)
+      return
+    }
     if (modal === 'create') {
-      setPeople((items) => [...items, { ...form, id: `local-${Date.now()}` }])
-      setNotice('미리보기 인물을 추가했어요.')
+      const profile = { ...form, revealAt: Number(form.revealAt) || positionValue }
+      const person = {
+        ...form,
+        firstRevealAt: profile.revealAt,
+        profiles: [profile],
+        id: makeLocalPersonId(),
+      }
+      setPeople((items) => [...items, person])
+      setActivePersonId(person.id)
+      setNotice('인물을 추가했어요.')
     } else {
       setPeople((items) =>
-        items.map((person) =>
-          person.id === form.id ? { ...form, name: form.name.trim() } : person,
-        ),
+        items.map((person) => {
+          if (person.id !== form.id) return person
+          const revealAt = Number(form.revealAt) || positionValue
+          const profiles = [...(person.profiles ?? [])]
+          const profileIndex = profiles.findIndex((item) => Number(item.revealAt) === revealAt)
+          const profile = { ...form, name: form.name.trim(), revealAt }
+          if (profileIndex < 0) profiles.push(profile)
+          else profiles[profileIndex] = profile
+          return { ...person, profiles, ...profile, firstRevealAt: person.firstRevealAt }
+        }),
       )
-      setNotice('미리보기 정보를 수정했어요.')
+      setNotice('인물 정보를 수정했어요.')
     }
+    setIsDirty(true)
     closeModal()
   }
-  const discard = () => {
-    navigate(-1)
+  const discard = async () => {
+    try {
+      await deletePersonDraft(
+        getDraftStorageKey(bookId, mode),
+        people.map((person) => person.imageKey).filter(Boolean),
+      )
+      navigate(-1)
+    } catch (error) {
+      setNotice(error.message || '초안 삭제에 실패했어요.')
+    }
   }
   const saveDraftAndReturn = () => {
     const storedPeople = people.map((person) => {
@@ -254,29 +414,112 @@ const WikiRegisterPersonPage = () => {
       delete storedPerson.imageUrl
       return storedPerson
     })
-    storePersonDraft(getDraftStorageKey(bookId, mode), storedPeople)
+    storePersonDraft(getDraftStorageKey(bookId, mode), {
+      position,
+      positionUnit,
+      people: storedPeople,
+    })
       .then(() => {
         navigate(-1)
       })
       .catch((error) => setNotice(error.message || '임시 저장에 실패했어요.'))
   }
+  const returnToWikiAdd = async () => {
+    const storedPeople = people.map((person) => {
+      const savedPerson = { ...person }
+      delete savedPerson.imageUrl
+      return savedPerson
+    })
+    try {
+      await storePersonDraft(getDraftStorageKey(bookId, mode), {
+        position,
+        positionUnit,
+        people: storedPeople,
+      })
+      navigate(ROUTES.WIKI_ADD_PAGE, {
+        state: {
+          mode,
+          book,
+          bookId,
+          position,
+          wikiId: location.state?.wikiId,
+          baseWikiVersion: location.state?.baseWikiVersion,
+          positionConfirmed: true,
+        },
+      })
+    } catch (error) {
+      setNotice(error.message || '임시 저장에 실패했어요.')
+    }
+  }
 
   const submitForReview = async () => {
     if (isSubmitting) return
-    if (!bookId || people.length === 0) {
+    const mockMode = import.meta.env.VITE_WIKI_API_MODE !== 'api'
+    if ((!bookId && (!mockMode || !import.meta.env.DEV)) || people.length === 0) {
       setNotice('도서 정보와 인물을 확인해 주세요.')
       return
     }
-    if (mode === 'UPDATE' && (!location.state?.wikiId || location.state?.baseWikiVersion == null)) {
+    if (
+      !mockMode &&
+      mode === 'UPDATE' &&
+      (!location.state?.wikiId || location.state?.baseWikiVersion == null)
+    ) {
       setNotice('위키 수정 정보가 없어 제출할 수 없어요. 이전 화면에서 다시 진입해 주세요.')
+      return
+    }
+    if (mode === 'UPDATE' && !isDirty) {
+      setNotice('변경한 내용이 있을 때 검수 제출할 수 있어요.')
+      return
+    }
+    if (!mockMode && mode === 'UPDATE') {
+      setNotice(
+        '기존 위키의 서버 초안과 인물 ID를 먼저 불러온 뒤 제출할 수 있어요. 현재 화면은 목업 수정 모드입니다.',
+      )
+      return
+    }
+    const hasSpoilerAfterPosition = people.some((person) => {
+      const revealPoints = [
+        person.firstRevealAt,
+        ...(person.profiles ?? []).map((profile) => profile.revealAt),
+        person.imageRevealAt,
+        ...(person.entries ?? []).map((entry) => entry.revealAt),
+        ...(person.abilities ?? []).map((entry) => entry.revealAt),
+        ...(person.otherEntries ?? []).map((entry) => entry.revealAt),
+        ...Object.values(person.relations ?? {}).flatMap((relations) =>
+          relations.map((relation) =>
+            typeof relation === 'string' ? undefined : relation.revealAt,
+          ),
+        ),
+      ]
+      return revealPoints.some(
+        (revealPoint) => revealPoint != null && Number(revealPoint) > positionValue,
+      )
+    })
+    if (hasSpoilerAfterPosition) {
+      setNotice(`읽은 지점 ${positionValue}${positionUnitLabel} 뒤의 정보는 제출할 수 없어요.`)
       return
     }
     setIsSubmitting(true)
     try {
+      if (mockMode) {
+        await storePersonDraft(getDraftStorageKey(bookId, mode), {
+          position,
+          positionUnit,
+          people: people.map((person) => {
+            const storedPerson = { ...person }
+            delete storedPerson.imageUrl
+            return storedPerson
+          }),
+        })
+        setIsSubmitted(true)
+        setNotice('목업: 위키 변경 내용을 검수 제출했어요.')
+        return
+      }
+
       const created = await createWikiDraft({
         bookId,
         mode,
-        position: toApiPosition(position, positionValue),
+        position: toApiPosition(position, positionValue, positionUnit),
         wikiId: location.state?.wikiId,
         baseWikiVersion: location.state?.baseWikiVersion,
       })
@@ -294,22 +537,77 @@ const WikiRegisterPersonPage = () => {
           imageAssetId = uploaded.data?.assetId ?? uploaded.data?.id ?? null
           if (!etag || !imageAssetId) throw new Error('이미지 업로드 결과를 확인할 수 없어요.')
         }
-        const firstRevealAt = toApiPosition(person.firstRevealAt, positionValue)
+        const profiles = person.profiles?.length
+          ? [...person.profiles].sort((a, b) => Number(a.revealAt) - Number(b.revealAt))
+          : [{ ...person, revealAt: person.firstRevealAt }]
+        const firstProfile = profiles[0]
+        const firstRevealAt = toApiPosition(person.firstRevealAt, positionValue, positionUnit)
         const result = await createWikiCharacter({
           draftId,
           firstRevealAt,
           etag,
           profile: {
-            name: person.name.trim(),
-            gender: person.gender || null,
-            personality: person.personality || null,
-            role: person.role || null,
-            description: '',
+            name: (firstProfile.name ?? person.name).trim(),
+            role: firstProfile.role || null,
+            description: firstProfile.personality || firstProfile.description || '',
             imageAssetId,
+            revealAt: toApiPosition(
+              firstProfile.revealAt ?? person.firstRevealAt,
+              positionValue,
+              positionUnit,
+            ),
           },
         })
         etag = result.etag
         if (!etag) throw new Error('초안 버전 정보를 확인할 수 없어요.')
+        const characterId = result.data?.entityId ?? result.data?.characterId
+        if (
+          !characterId &&
+          (profiles.length > 1 ||
+            person.entries?.length ||
+            person.abilities?.length ||
+            person.otherEntries?.length)
+        ) {
+          throw new Error('인물 ID를 확인할 수 없어 세부 내용을 저장하지 못했어요.')
+        }
+        for (const profile of profiles.slice(1)) {
+          const savedProfile = await createWikiCharacterProfile({
+            draftId,
+            characterId,
+            etag,
+            profile: {
+              name: profile.name.trim(),
+              role: profile.role || null,
+              description: profile.personality || profile.description || '',
+              imageAssetId: profile.imageAssetId ?? imageAssetId,
+              revealAt: toApiPosition(profile.revealAt, positionValue, positionUnit),
+            },
+          })
+          etag = savedProfile.etag
+        }
+        for (const [type, entries] of [
+          ['EVENT', person.entries ?? []],
+          ['ABILITY', person.abilities ?? []],
+          ['OTHER', person.otherEntries ?? []],
+        ]) {
+          for (const entry of entries) {
+            const revealAt =
+              Number(entry.revealAt) || Number(firstProfile.revealAt) || positionValue
+            const savedEntry = await createWikiCharacterEntry({
+              draftId,
+              characterId,
+              etag,
+              entry: {
+                type,
+                title: entry.title,
+                content: entry.content ?? '',
+                revealAt: toApiPosition(revealAt, positionValue, positionUnit),
+                sourcePosition: toApiPosition(revealAt, positionValue, positionUnit),
+              },
+            })
+            etag = savedEntry.etag
+          }
+        }
       }
 
       await submitWikiDraft({
@@ -317,12 +615,11 @@ const WikiRegisterPersonPage = () => {
         etag,
         idempotencyKey: window.crypto.randomUUID(),
       })
-      const hasUnlinkedAffiliation = people.some(
-        (person) => person.affiliation && !person.organizationId,
-      )
+      const hasUnlinkedAffiliation = people.some((person) => person.affiliation)
+      setIsSubmitted(true)
       setNotice(
         hasUnlinkedAffiliation
-          ? '검수 제출이 완료됐어요. 소속은 단체 ID를 확인할 수 없어 포함되지 않았어요.'
+          ? '검수 제출이 완료됐어요. 소속은 현재 초안에 단체 정보가 없어 API에 연결되지 않았어요.'
           : '검수 제출이 완료됐어요.',
       )
     } catch (error) {
@@ -336,6 +633,93 @@ const WikiRegisterPersonPage = () => {
     }
   }
 
+  const getEntriesForTab = (person, tabId) =>
+    tabId === 'EVENT'
+      ? (person.entries ?? [])
+      : tabId === 'ABILITY'
+        ? (person.abilities ?? [])
+        : (person.otherEntries ?? [])
+
+  const setEntriesForTab = (person, tabId, entries) => ({
+    ...person,
+    ...(tabId === 'EVENT'
+      ? { entries }
+      : tabId === 'ABILITY'
+        ? { abilities: entries }
+        : { otherEntries: entries }),
+  })
+
+  const saveEntry = (event) => {
+    event.preventDefault()
+    if (!entryDraft?.title.trim() || !activePerson) return
+    if (Number(entryDraft.revealAt) > positionValue) {
+      setNotice(`공개 지점은 읽은 지점 ${positionValue}${positionUnitLabel}보다 뒤일 수 없어요.`)
+      return
+    }
+    const entries = getEntriesForTab(activePerson, selectedTab)
+    const entry = {
+      ...entryDraft,
+      title: entryDraft.title.trim(),
+      content: entryDraft.content?.trim() ?? '',
+      revealAt: Number(entryDraft.revealAt) || positionValue,
+    }
+    const nextEntries =
+      entryDraft.index == null
+        ? [...entries, entry]
+        : entries.map((item, index) => (index === entryDraft.index ? entry : item))
+    setPeople((items) =>
+      items.map((person) =>
+        person.id === activePerson.id ? setEntriesForTab(person, selectedTab, nextEntries) : person,
+      ),
+    )
+    setEntryDraft(null)
+    setIsDirty(true)
+  }
+
+  const deleteEntry = (index) => {
+    if (!activePerson) return
+    const nextEntries = getEntriesForTab(activePerson, selectedTab).filter((_, i) => i !== index)
+    setPeople((items) =>
+      items.map((person) =>
+        person.id === activePerson.id ? setEntriesForTab(person, selectedTab, nextEntries) : person,
+      ),
+    )
+    setIsDirty(true)
+  }
+
+  const saveRelation = (event) => {
+    event.preventDefault()
+    if (!activePerson || !relationDraft?.name.trim()) return
+    if (Number(relationDraft.revealAt) > positionValue) {
+      setNotice(`공개 지점은 읽은 지점 ${positionValue}${positionUnitLabel}보다 뒤일 수 없어요.`)
+      return
+    }
+    const relations = { ...(activePerson.relations ?? {}) }
+    const group = relationDraft.type
+    relations[group] = [
+      ...(relations[group] ?? []),
+      {
+        name: relationDraft.name.trim(),
+        revealAt: Number(relationDraft.revealAt) || positionValue,
+      },
+    ]
+    setPeople((items) =>
+      items.map((person) => (person.id === activePerson.id ? { ...person, relations } : person)),
+    )
+    setRelationDraft(null)
+    setIsDirty(true)
+  }
+
+  const deleteRelation = (group, index) => {
+    if (!activePerson) return
+    const relations = { ...(activePerson.relations ?? {}) }
+    relations[group] = relations[group].filter((_, i) => i !== index)
+    setPeople((items) =>
+      items.map((person) => (person.id === activePerson.id ? { ...person, relations } : person)),
+    )
+    setIsDirty(true)
+  }
+
   return (
     <div className="relative mx-auto flex min-h-full w-full max-w-[390px] flex-col bg-surface px-0 pt-5">
       <header className="flex h-[22px] shrink-0 items-center justify-between px-5">
@@ -343,7 +727,7 @@ const WikiRegisterPersonPage = () => {
           <button
             aria-label="인물 목록으로 돌아가기"
             className="flex h-[22px] items-center gap-2 text-teal-strong"
-            onClick={() => setActivePersonId(null)}
+            onClick={() => void returnToWikiAdd()}
             type="button"
           >
             <img alt="" aria-hidden="true" className="size-5" src={chevronLeft} />
@@ -360,7 +744,11 @@ const WikiRegisterPersonPage = () => {
         )}
         <button
           className="h-[22px] text-label font-medium text-text-primary"
-          onClick={() => setNotice(`현재 진도 ${positionValue}화 기준으로 작성 중이에요.`)}
+          onClick={() => {
+            setPositionInput(String(positionValue))
+            setPositionUnitInput(positionUnit)
+            setPositionDialogOpen(true)
+          }}
           type="button"
         >
           진도 변경
@@ -388,7 +776,10 @@ const WikiRegisterPersonPage = () => {
                 {book.title ?? '애주가의 절주 일기'}
               </p>
               <p className="mt-1 text-label text-text-secondary">
-                <span className="font-medium text-teal-strong">{positionValue}화까지 읽음</span>
+                <span className="font-medium text-teal-strong">
+                  {positionValue}
+                  {positionUnitLabel}까지 읽음
+                </span>
                 <span className="px-2">·</span>스포일러 보호 중
               </p>
             </div>
@@ -427,104 +818,67 @@ const WikiRegisterPersonPage = () => {
 
         {!activePerson ? (
           <>
-            <div className="mt-[10px] grid grid-cols-3 gap-2" role="tablist" aria-label="위키 유형">
-              <button
-                aria-selected={selectedCategory === 'CHARACTER'}
-                className={`h-8 rounded-lg text-label font-medium ${selectedCategory === 'CHARACTER' ? 'bg-teal-selected text-white' : 'bg-control-neutral text-text-secondary'}`}
-                onClick={() => setSelectedCategory('CHARACTER')}
-                role="tab"
-                type="button"
-              >
-                인물 {people.length}
-              </button>
-              <button
-                aria-selected="false"
-                className="h-8 rounded-lg bg-control-neutral text-label text-text-secondary"
-                onClick={() => setNotice('단체 위키는 단체 등록 화면에서 편집할 수 있어요.')}
-                role="tab"
-                type="button"
-              >
-                단체
-              </button>
-              <button
-                aria-selected={selectedCategory === 'RELATIONSHIP_MAP'}
-                className={`h-8 rounded-lg text-label font-medium ${selectedCategory === 'RELATIONSHIP_MAP' ? 'bg-teal-selected text-white' : 'bg-control-neutral text-text-secondary'}`}
-                onClick={() => setSelectedCategory('RELATIONSHIP_MAP')}
-                role="tab"
-                type="button"
-              >
-                관계도
-              </button>
+            <div className="mt-3 flex h-[37px] w-[calc(100%+8px)] items-center gap-2 rounded-lg bg-amber-background px-3 text-caption text-amber-foreground">
+              <span aria-hidden="true" className="text-body">
+                ✧
+              </span>
+              <span>검수 승인 시 AI 토큰 최대 10개를 보상으로 드려요.</span>
             </div>
-            {selectedCategory === 'RELATIONSHIP_MAP' ? (
-              <div className="min-h-[360px]" role="tabpanel" aria-label="관계도 추가 화면 예정" />
-            ) : (
-              <>
-                <div className="mt-3 flex h-[37px] w-[calc(100%+8px)] items-center gap-2 rounded-lg bg-amber-background px-3 text-caption text-amber-foreground">
-                  <span aria-hidden="true" className="text-body">
-                    ✧
-                  </span>
-                  <span>검수 승인 시 AI 토큰 최대 10개를 보상으로 드려요.</span>
-                </div>
-                <ul className="mt-[14px] divide-y divide-border/50">
-                  {people.map((person) => (
-                    <li key={person.id} className="flex min-h-[72px] items-center gap-3">
-                      <button
-                        className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 text-left"
-                        onClick={() => setActivePersonId(person.id)}
-                        type="button"
-                      >
-                        {person.imageUrl ? (
-                          <img
-                            alt=""
-                            className="size-10 rounded-full object-cover"
-                            src={person.imageUrl}
-                          />
-                        ) : (
-                          <span
-                            className="size-10 shrink-0 rounded-full bg-teal-strong"
-                            aria-hidden="true"
-                          />
-                        )}
-                        <span className="min-w-0">
-                          <span className="block truncate text-body-lg font-medium">
-                            {person.name}
-                          </span>
-                          <span className="mt-0.5 block text-label text-text-secondary">
-                            {person.gender === '남성'
-                              ? '남'
-                              : person.gender === '여성'
-                                ? '여'
-                                : person.gender === '인외'
-                                  ? '인외'
-                                  : '기타'}{' '}
-                            · {person.role || '비중 미정'} · {person.affiliation || '소속 미정'}
-                          </span>
-                        </span>
-                      </button>
-                      <button
-                        aria-label={`${person.name} 정보 보기`}
-                        className="flex size-11 shrink-0 items-center justify-center text-text-secondary"
-                        onClick={() => setActivePersonId(person.id)}
-                        type="button"
-                      >
-                        ›
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className="mt-3 flex min-h-16 w-full items-center justify-center gap-1 text-label text-text-secondary"
-                  onClick={openCreate}
-                  type="button"
-                >
-                  신규 인물 추가{' '}
-                  <span aria-hidden="true" className="text-body">
-                    ＋
-                  </span>
-                </button>
-              </>
-            )}
+            <ul className="mt-[14px] divide-y divide-border/50">
+              {people.map((person) => (
+                <li key={person.id} className="flex min-h-[72px] items-center gap-3">
+                  <button
+                    className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 text-left"
+                    onClick={() => setActivePersonId(person.id)}
+                    type="button"
+                  >
+                    {person.imageUrl ? (
+                      <img
+                        alt=""
+                        className="size-10 rounded-full object-cover"
+                        src={person.imageUrl}
+                      />
+                    ) : (
+                      <span
+                        className="size-10 shrink-0 rounded-full bg-teal-strong"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span className="min-w-0">
+                      <span className="block truncate text-body-lg font-medium">{person.name}</span>
+                      <span className="mt-0.5 block text-label text-text-secondary">
+                        {person.gender === '남성'
+                          ? '남'
+                          : person.gender === '여성'
+                            ? '여'
+                            : person.gender === '인외'
+                              ? '인외'
+                              : '기타'}{' '}
+                        · {person.role || '비중 미정'} · {person.affiliation || '소속 미정'}
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    aria-label={`${person.name} 정보 보기`}
+                    className="flex size-11 shrink-0 items-center justify-center text-text-secondary"
+                    onClick={() => setActivePersonId(person.id)}
+                    type="button"
+                  >
+                    ›
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button
+              className="mt-3 flex min-h-16 w-full items-center justify-center gap-1 text-label text-text-secondary"
+              onClick={openCreate}
+              type="button"
+            >
+              신규 인물 추가{' '}
+              <span aria-hidden="true" className="text-body">
+                ＋
+              </span>
+            </button>
           </>
         ) : (
           <section className="mt-3" aria-label="인물 상세 편집">
@@ -540,9 +894,17 @@ const WikiRegisterPersonPage = () => {
                       previewUrls.current.add(imageUrl)
                       setPeople((items) =>
                         items.map((item) =>
-                          item.id === activePerson.id ? { ...item, imageKey, imageUrl } : item,
+                          item.id === activePerson.id
+                            ? {
+                                ...item,
+                                imageKey,
+                                imageUrl,
+                                imageRevealAt: item.imageRevealAt ?? item.firstRevealAt,
+                              }
+                            : item,
                         ),
                       )
+                      setIsDirty(true)
                     } catch (error) {
                       setNotice(error.message || '이미지 임시 저장에 실패했어요.')
                     }
@@ -595,7 +957,11 @@ const WikiRegisterPersonPage = () => {
                   key={tab.id}
                   aria-selected={selectedTab === tab.id}
                   className={`h-10 border-b-2 px-1 text-label ${selectedTab === tab.id ? 'border-teal-strong font-bold text-teal-strong' : 'border-transparent text-text-secondary'}`}
-                  onClick={() => setSelectedTab(tab.id)}
+                  onClick={() => {
+                    setSelectedTab(tab.id)
+                    setEntryDraft(null)
+                    setRelationDraft(null)
+                  }}
                   role="tab"
                   type="button"
                 >
@@ -607,101 +973,273 @@ const WikiRegisterPersonPage = () => {
               <h3 className="text-body-lg font-bold">
                 {tabs.find((tab) => tab.id === selectedTab)?.label}
               </h3>
-              {selectedTab !== 'RELATION' && (
+              {selectedTab === 'ABILITY' ? (
+                <div
+                  aria-label="능력 표시 설정"
+                  className="flex gap-1 text-caption text-text-muted"
+                >
+                  <button
+                    aria-pressed={showAbilities}
+                    className={showAbilities ? 'text-teal-strong' : ''}
+                    onClick={() => setShowAbilities(true)}
+                    type="button"
+                  >
+                    표시
+                  </button>
+                  <span aria-hidden="true">|</span>
+                  <button
+                    aria-pressed={!showAbilities}
+                    className={!showAbilities ? 'text-teal-strong' : ''}
+                    onClick={() => setShowAbilities(false)}
+                    type="button"
+                  >
+                    숨김
+                  </button>
+                </div>
+              ) : selectedTab !== 'RELATION' ? (
                 <span className="text-caption text-text-muted">최신순</span>
-              )}
+              ) : null}
             </div>
             {selectedTab === 'RELATION' ? (
               <div className="mt-3 px-3">
-                <div className="flex h-[37px] items-center rounded-md bg-control-neutral px-3 text-label text-text-secondary">
-                  인물 검색
+                {relationDraft ? (
+                  <form
+                    className="space-y-2 rounded-lg bg-control-neutral p-3"
+                    onSubmit={saveRelation}
+                  >
+                    <select
+                      aria-label="관계 유형"
+                      className="h-9 w-full rounded-md bg-surface px-2 text-label"
+                      onChange={(event) =>
+                        setRelationDraft((draft) => ({ ...draft, type: event.target.value }))
+                      }
+                      value={relationDraft.type}
+                    >
+                      <option value="우호">우호</option>
+                      <option value="대립">대립</option>
+                      <option value="중립">중립</option>
+                    </select>
+                    <select
+                      aria-label="관계를 맺을 인물"
+                      className="h-9 w-full rounded-md bg-surface px-2 text-label"
+                      onChange={(event) =>
+                        setRelationDraft((draft) => ({ ...draft, name: event.target.value }))
+                      }
+                      value={relationDraft.name}
+                    >
+                      <option value="">인물 선택</option>
+                      {people
+                        .filter((person) => person.id !== activePerson.id)
+                        .map((person) => (
+                          <option key={person.id} value={person.name}>
+                            {person.name}
+                          </option>
+                        ))}
+                    </select>
+                    <label className="flex items-center gap-2 text-caption text-text-secondary">
+                      공개 지점
+                      <input
+                        className="h-9 w-20 rounded-md bg-surface px-2 text-body"
+                        inputMode="numeric"
+                        max={positionValue}
+                        min="1"
+                        onChange={(event) =>
+                          setRelationDraft((draft) => ({ ...draft, revealAt: event.target.value }))
+                        }
+                        type="number"
+                        value={relationDraft.revealAt}
+                      />
+                      {positionUnitLabel}
+                    </label>
+                    <div className="flex justify-end gap-3 text-label">
+                      <button
+                        className="text-text-secondary"
+                        onClick={() => setRelationDraft(null)}
+                        type="button"
+                      >
+                        취소
+                      </button>
+                      <button className="font-medium text-teal-strong" type="submit">
+                        저장
+                      </button>
+                    </div>
+                  </form>
+                ) : (
                   <button
-                    className="ml-auto text-text-muted"
-                    onClick={() => setNotice('관계 추가 API 연결이 필요해요.')}
+                    className="flex h-[37px] w-full items-center rounded-md bg-control-neutral px-3 text-left text-label text-text-secondary"
+                    onClick={() =>
+                      setRelationDraft({ name: '', type: '우호', revealAt: positionValue })
+                    }
                     type="button"
                   >
-                    추가 ＋
+                    인물 검색 <span className="ml-auto text-text-muted">추가 ＋</span>
                   </button>
-                </div>
+                )}
                 {Object.entries(activePerson.relations ?? {}).map(([relation, names], index) => (
                   <section className="mt-3" key={relation}>
                     <h4 className="mb-1 text-body font-bold">{relation}</h4>
                     <ul
                       className={`border-l pl-3 ${index === 0 ? 'border-teal-strong' : index === 1 ? 'border-red-destructive' : 'border-text-secondary'}`}
                     >
-                      {names.map((name, itemIndex) => (
-                        <li
-                          className="flex min-h-[60px] items-center gap-3"
-                          key={`${relation}-${itemIndex}`}
-                        >
-                          <span
-                            className="size-10 shrink-0 rounded-full bg-teal-strong"
-                            aria-hidden="true"
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-body">{name}</span>
-                            <span className="text-caption text-text-secondary">00화</span>
-                          </span>
-                          <button
-                            className="text-label text-red-destructive"
-                            onClick={() => setNotice('관계 삭제 API 연결이 필요해요.')}
-                            type="button"
+                      {names.map((relationEntry, itemIndex) => {
+                        const name =
+                          typeof relationEntry === 'string' ? relationEntry : relationEntry.name
+                        const revealAt =
+                          typeof relationEntry === 'string'
+                            ? 0
+                            : (relationEntry.revealAt ?? positionValue)
+                        return (
+                          <li
+                            className="flex min-h-[60px] items-center gap-3"
+                            key={`${relation}-${itemIndex}`}
                           >
-                            삭제
-                          </button>
-                        </li>
-                      ))}
+                            <span
+                              className="size-10 shrink-0 rounded-full bg-teal-strong"
+                              aria-hidden="true"
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-body">{name}</span>
+                              <span className="text-caption text-text-secondary">
+                                {revealAt ? `${revealAt}${positionUnitLabel}` : '공개 지점 미정'}
+                              </span>
+                            </span>
+                            <button
+                              className="text-label text-red-destructive"
+                              onClick={() => deleteRelation(relation, itemIndex)}
+                              type="button"
+                            >
+                              삭제
+                            </button>
+                          </li>
+                        )
+                      })}
                     </ul>
                   </section>
                 ))}
               </div>
             ) : (
-              <ul className="mt-3 px-3">
-                {(selectedTab === 'EVENT'
-                  ? activePerson.entries
-                  : selectedTab === 'ABILITY'
-                    ? activePerson.abilities
-                    : activePerson.otherEntries
-                )?.map((entry, index) => (
-                  <li
-                    className={`flex items-center gap-2 border-b border-border/50 ${selectedTab === 'ABILITY' ? 'min-h-[68px]' : 'min-h-[48px]'}`}
-                    key={`${entry.title}-${index}`}
+              <>
+                {entryDraft && (
+                  <form
+                    className="mx-3 mt-3 rounded-lg bg-control-neutral p-3"
+                    onSubmit={saveEntry}
                   >
-                    {selectedTab === 'ABILITY' ? (
-                      <>
-                        <span className="text-label text-teal-strong">Ⅱ 항로 읽기</span>
-                        <span className="min-w-0 flex-1 text-caption text-text-secondary">
-                          {entry.content}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="min-w-0 flex-1 truncate text-body-sm">{entry.title}</span>
+                    <label className="block text-caption text-text-secondary">
+                      {selectedTab === 'ABILITY' ? '능력 이름' : '내용'}
+                      <input
+                        autoFocus
+                        className="mt-1 h-10 w-full rounded-md bg-surface px-3 text-body"
+                        maxLength={selectedTab === 'ABILITY' ? 100 : 1000}
+                        onChange={(event) =>
+                          setEntryDraft((draft) => ({ ...draft, title: event.target.value }))
+                        }
+                        placeholder="추가할 내용을 입력해주세요."
+                        required
+                        value={entryDraft.title}
+                      />
+                    </label>
+                    {selectedTab === 'ABILITY' && (
+                      <label className="mt-2 block text-caption text-text-secondary">
+                        설명
+                        <textarea
+                          className="mt-1 min-h-16 w-full rounded-md bg-surface p-3 text-body"
+                          maxLength={5000}
+                          onChange={(event) =>
+                            setEntryDraft((draft) => ({ ...draft, content: event.target.value }))
+                          }
+                          value={entryDraft.content}
+                        />
+                      </label>
                     )}
-                    <span className="shrink-0 text-caption-xs text-text-secondary">
-                      {entry.revealAt}화
-                    </span>
-                    <button
-                      className="text-label text-teal-strong"
-                      onClick={() => setNotice('항목 수정 API 연결이 필요해요.')}
-                      type="button"
-                    >
-                      편집
-                    </button>
-                    <button
-                      className="text-label text-red-destructive"
-                      onClick={() => setNotice('항목 삭제 API 연결이 필요해요.')}
-                      type="button"
-                    >
-                      삭제
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                    <label className="mt-2 flex items-center gap-2 text-caption text-text-secondary">
+                      공개 지점
+                      <input
+                        className="h-9 w-20 rounded-md bg-surface px-2 text-body"
+                        inputMode="numeric"
+                        max={positionValue}
+                        min="1"
+                        onChange={(event) =>
+                          setEntryDraft((draft) => ({ ...draft, revealAt: event.target.value }))
+                        }
+                        type="number"
+                        value={entryDraft.revealAt}
+                      />
+                      {positionUnitLabel}
+                    </label>
+                    <div className="mt-2 flex justify-end gap-3 text-label">
+                      <button
+                        className="text-text-secondary"
+                        onClick={() => setEntryDraft(null)}
+                        type="button"
+                      >
+                        취소
+                      </button>
+                      <button className="font-medium text-teal-strong" type="submit">
+                        저장
+                      </button>
+                    </div>
+                  </form>
+                )}
+                {selectedTab === 'ABILITY' && !showAbilities ? (
+                  <p className="mt-3 px-3 text-caption text-text-secondary">
+                    능력과 기술을 숨기고 있어요.
+                  </p>
+                ) : (
+                  <ul className="mt-3 px-3">
+                    {getEntriesForTab(activePerson, selectedTab).length === 0 && !entryDraft && (
+                      <li className="rounded-lg bg-canvas px-4 py-5 text-label text-text-secondary">
+                        아직 등록한 내용이 없어요.
+                      </li>
+                    )}
+                    {getEntriesForTab(activePerson, selectedTab).map((entry, index) => (
+                      <li
+                        className={`flex items-center gap-2 border-b border-border/50 ${selectedTab === 'ABILITY' ? 'min-h-[68px]' : 'min-h-[48px]'}`}
+                        key={`${entry.title}-${index}`}
+                      >
+                        {selectedTab === 'ABILITY' ? (
+                          <>
+                            <span className="shrink-0 text-label text-teal-strong">
+                              Ⅱ {entry.title}
+                            </span>
+                            <span className="min-w-0 flex-1 text-caption text-text-secondary">
+                              {entry.content}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="min-w-0 flex-1 truncate text-body-sm">
+                            {entry.title}
+                          </span>
+                        )}
+                        <span className="shrink-0 text-caption-xs text-text-secondary">
+                          {entry.revealAt}
+                          {positionUnitLabel}
+                        </span>
+                        <button
+                          className="text-label text-teal-strong"
+                          onClick={() => setEntryDraft({ ...entry, index })}
+                          type="button"
+                        >
+                          편집
+                        </button>
+                        <button
+                          className="text-label text-red-destructive"
+                          onClick={() => deleteEntry(index)}
+                          type="button"
+                        >
+                          삭제
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
             <button
               className="mt-3 min-h-11 w-full text-label text-text-secondary"
               onClick={() =>
-                setNotice('세부 항목 추가는 관계·행적 편집 API 연결 후 저장할 수 있어요.')
+                selectedTab === 'RELATION'
+                  ? setRelationDraft({ name: '', type: '우호', revealAt: positionValue })
+                  : setEntryDraft({ title: '', content: '', revealAt: positionValue })
               }
               type="button"
             >
@@ -714,9 +1252,9 @@ const WikiRegisterPersonPage = () => {
       <footer className="sticky bottom-0 z-10 mt-auto w-full bg-surface px-5 pt-[10px] pb-[14px]">
         <Button
           className="rounded-lg font-bold"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isSubmitted}
           onClick={submitForReview}
-          text="검수 제출"
+          text={isSubmitted ? '제출 완료' : '검수 제출'}
           height="46px"
           color="emphasis"
           textStyle="body"
@@ -734,7 +1272,7 @@ const WikiRegisterPersonPage = () => {
 
       {notice && (
         <div
-          className="fixed inset-x-5 bottom-[145px] z-20 mx-auto max-w-[390px] rounded-lg bg-text-primary px-4 py-3 text-label text-white"
+          className="fixed inset-x-5 bottom-[145px] z-50 mx-auto max-w-[390px] rounded-lg bg-text-primary px-4 py-3 text-label text-white"
           role="status"
         >
           <div className="flex items-center justify-between gap-3">
@@ -801,27 +1339,45 @@ const WikiRegisterPersonPage = () => {
                       addOrganization()
                     }
                   }}
-                  placeholder="단체 검색"
+                  placeholder="검색어 입력"
                   value={query}
                 />
               </div>
-              {(organizations.length > 0 || form.affiliation) && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {[
-                    ...new Set([...organizations, ...(form.affiliation ? [form.affiliation] : [])]),
-                  ].map((name) => (
+              {query.trim() && (
+                <div className="mt-1 overflow-hidden rounded-md bg-control-neutral">
+                  {organizations
+                    .filter((organization) => organization.name.includes(query.trim()))
+                    .map((organization) => (
+                      <button
+                        className="block min-h-9 w-full px-3 text-left text-body text-teal-strong hover:bg-teal-subtle"
+                        key={organization.id ?? organization.name}
+                        onClick={() => addOrganization(organization)}
+                        type="button"
+                      >
+                        {organization.name}
+                      </button>
+                    ))}
+                  {!organizations.some((organization) =>
+                    organization.name.includes(query.trim()),
+                  ) && (
                     <button
-                      key={name}
-                      className={`h-5 min-w-9 rounded-full px-2 text-caption-xs ${form.affiliation === name ? 'bg-teal-selected text-white' : 'bg-control-neutral text-text-secondary'}`}
-                      onClick={() =>
-                        updateField('affiliation', form.affiliation === name ? '' : name)
-                      }
+                      className="block min-h-9 w-full px-3 text-left text-body text-teal-strong"
+                      onClick={() => addOrganization()}
                       type="button"
                     >
-                      {name} ×
+                      ‘{query.trim()}’ 검색어 사용
                     </button>
-                  ))}
+                  )}
                 </div>
+              )}
+              {form.affiliation && (
+                <button
+                  className="mt-1 h-5 rounded-full bg-teal-selected px-2 text-caption-xs text-white"
+                  onClick={() => updateField('affiliation', '')}
+                  type="button"
+                >
+                  {form.affiliation} ×
+                </button>
               )}
             </label>
             <label className="mb-3 block text-caption text-text-secondary">
@@ -872,16 +1428,15 @@ const WikiRegisterPersonPage = () => {
               <input
                 className="h-7 w-14 rounded-md bg-control-neutral text-center text-body text-text-primary"
                 style={{ outline: 'none' }}
+                max={positionValue}
                 min="1"
-                onChange={(event) =>
-                  updateField('firstRevealAt', event.target.value.replace(/\D/g, ''))
-                }
+                onChange={(event) => updateField('revealAt', event.target.value.replace(/\D/g, ''))}
                 inputMode="numeric"
                 pattern="[0-9]*"
                 type="text"
-                value={form.firstRevealAt}
+                value={form.revealAt ?? form.firstRevealAt}
               />
-              화
+              {positionUnitLabel}
             </label>
             <button
               className="mt-auto h-[38px] w-full rounded-lg bg-teal-strong text-body font-bold text-white"
@@ -889,6 +1444,87 @@ const WikiRegisterPersonPage = () => {
             >
               {modal === 'create' ? '인물 추가' : '수정'}
             </button>
+          </form>
+        </div>
+      )}
+
+      {positionDialogOpen && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-text-primary/35 px-9 py-8 backdrop-blur-[1.5px]">
+          <form
+            aria-labelledby="reading-position-title"
+            aria-modal="true"
+            className="w-full max-w-[318px] rounded-xl bg-surface p-6 shadow-xl"
+            onSubmit={(event) => {
+              event.preventDefault()
+              const value = Number(positionInput)
+              if (
+                !Number.isInteger(value) ||
+                value < 1 ||
+                (maximumPosition && value > maximumPosition)
+              ) {
+                setNotice(
+                  maximumPosition
+                    ? `1부터 ${maximumPosition}까지 입력해 주세요.`
+                    : '읽은 지점을 확인해 주세요.',
+                )
+                return
+              }
+              setPosition({ unit: positionUnitInput, value })
+              setPositionUnit(positionUnitInput)
+              setIsDirty(true)
+              setPositionDialogOpen(false)
+              setNotice('읽은 지점을 설정했어요.')
+            }}
+          >
+            <h2 className="text-title font-bold" id="reading-position-title">
+              읽은 지점 설정
+            </h2>
+            <p className="mt-1 text-label text-text-secondary">
+              위키를 작성·수정할 때 발생할 수 있는 스포일러를 제한해요.
+            </p>
+            <div className="mt-5 flex items-center gap-3">
+              <img
+                alt=""
+                className="size-[52px] shrink-0 rounded-md object-cover"
+                src={book.coverUrl || bookCoverPreview}
+              />
+              <div className="min-w-0">
+                <p className="truncate text-body font-medium">{book.title || '선택한 도서'}</p>
+                <p className="mt-1 truncate text-caption text-text-secondary">
+                  {book.format || (positionUnitInput === 'EPISODE' ? '웹소설' : '종이책')}
+                  {maximumPosition &&
+                    ` · 전체 ${maximumPosition}${getPositionUnitLabel(positionUnitInput)}`}
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex items-center justify-center gap-2">
+              <input
+                aria-label="읽은 지점"
+                autoFocus
+                className="h-10 w-14 rounded-md bg-control-neutral text-center text-body"
+                inputMode="numeric"
+                max={maximumPosition}
+                min="1"
+                onChange={(event) => setPositionInput(event.target.value.replace(/\D/g, ''))}
+                required
+                type="text"
+                value={positionInput}
+              />
+              <span className="text-text-muted">/</span>
+              <span className="min-w-14 rounded-md bg-control-neutral px-2 py-2 text-center text-body text-text-secondary">
+                {maximumPosition ?? '—'}
+              </span>
+              <span aria-label="진도 단위" className="min-w-8 text-center text-body">
+                {positionUnitInput === 'PAGE' ? '쪽' : '화'}
+              </span>
+            </div>
+            <Button
+              className="mt-5 rounded-lg font-bold"
+              height="38px"
+              text={isWikiCreation ? '위키 생성' : '위키 수정'}
+              textStyle="body"
+              type="submit"
+            />
           </form>
         </div>
       )}

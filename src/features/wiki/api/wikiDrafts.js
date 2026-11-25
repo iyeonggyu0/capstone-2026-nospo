@@ -55,6 +55,18 @@ export const getPublicWikiCharacters = async ({ bookId, positionValue, cursor, l
   return getData(response)
 }
 
+/** 현재 읽은 지점에서 공개된 도서 단체를 검색한다. */
+export const getWikiOrganizations = async ({ bookId, positionValue, cursor, limit }) => {
+  const response = await apiClient.get(`/v1/books/${bookId}/wiki/organizations`, {
+    params: {
+      ...(positionValue !== undefined ? { positionValue } : {}),
+      ...(cursor ? { cursor } : {}),
+      ...(limit ? { limit } : {}),
+    },
+  })
+  return getData(response)
+}
+
 /** 도서의 내 초안 목록을 조회해 기존 작성·수정 초안을 재사용할 수 있게 한다. */
 export const getMyWikiDrafts = async ({ bookId, cursor, limit } = {}) => {
   const response = await apiClient.get('/v1/me/wiki/drafts', {
@@ -102,6 +114,16 @@ export const createWikiCharacter = async ({ draftId, firstRevealAt, profile, eta
     { headers: { 'If-Match': etag } },
   )
 
+  return getDraftResult(response)
+}
+
+/** 기존 인물에 읽은 지점별 새 프로필을 추가한다. */
+export const createWikiCharacterProfile = async ({ draftId, characterId, profile, etag }) => {
+  const response = await apiClient.post(
+    `/v1/wiki/drafts/${draftId}/characters/${characterId}/profiles`,
+    profile,
+    { headers: { 'If-Match': etag } },
+  )
   return getDraftResult(response)
 }
 

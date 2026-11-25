@@ -3,12 +3,14 @@ export { WikiEmptyStateDialog } from './components/WikiEmptyStateDialog'
 export {
   getPersonImage,
   restorePersonDraft,
+  deletePersonDraft,
   storePersonDraft,
   storePersonImage,
 } from './utils/personDraftStorage'
 export {
   createWikiCharacter,
   createWikiCharacterEntry,
+  createWikiCharacterProfile,
   createWikiDraft,
   createWikiAffiliation,
   createWikiRevisionDraft,
@@ -18,6 +20,7 @@ export {
   getBookWiki,
   getMyWikiDrafts,
   getPublicWikiCharacters,
+  getWikiOrganizations,
   getShelfProgress,
   getWikiDraft,
   updateWikiCharacterProfile,

@@ -58,6 +58,7 @@ export const router = createBrowserRouter([
           { path: ROUTES.WIKI_SEARCH, element: renderPage(WikiSearchPage) },
           { path: ROUTES.WIKI_ADD_EMPTY, element: renderPage(WikiAddEmptyPage) },
           { path: ROUTES.WIKI_ADD_PAGE, element: renderPage(WikiAddPagePage) },
+          { path: ROUTES.WIKI_ADD_PERSON, element: renderPage(WikiRegisterPersonPage) },
           { path: ROUTES.WIKI_DETAIL, element: renderPage(WikiDetailPage) },
           { path: ROUTES.WIKI_RELATION, element: renderPage(WikiRelationshipPage) },
           { path: ROUTES.WIKI_REGISTER, element: renderPage(WikiRegisterEntryPage) },

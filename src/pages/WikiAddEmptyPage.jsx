@@ -14,7 +14,7 @@ const WikiAddEmptyPage = () => {
   const startWikiCreation = () => {
     if (!canStartCreation) return
 
-    navigate(ROUTES.WIKI_REGISTER_PERSON, {
+    navigate(ROUTES.WIKI_ADD_PAGE, {
       state: {
         mode: 'CREATE',
         book,

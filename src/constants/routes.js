@@ -11,6 +11,7 @@ export const ROUTES = {
   WIKI_SEARCH: '/wiki/search/:searchType',
   WIKI_ADD_EMPTY: '/wiki/add/empty',
   WIKI_ADD_PAGE: '/wiki/add/page',
+  WIKI_ADD_PERSON: '/wiki/add/person',
   WIKI_DETAIL: '/wiki/:wikiId',
   WIKI_RELATION: '/wiki/:wikiId/relations',
   WIKI_REGISTER: '/wiki/register',

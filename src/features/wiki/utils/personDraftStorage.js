@@ -43,16 +43,40 @@ export const getPersonImage = (key) => withStore(IMAGE_STORE, 'readonly', (store
 export const storePersonDraft = (key, people) =>
   withStore(DRAFT_STORE, 'readwrite', (store) => store.put(people, key))
 
+/** 저장하지 않기로 한 인물 초안과 초안 이미지 파일을 제거한다. */
+export const deletePersonDraft = async (key, imageKeys = []) => {
+  const savedDraft = await withStore(DRAFT_STORE, 'readonly', (store) => store.get(key))
+  const savedPeople = Array.isArray(savedDraft) ? savedDraft : (savedDraft?.people ?? [])
+  const keys = new Set([
+    ...imageKeys,
+    ...savedPeople.map((person) => person.imageKey).filter(Boolean),
+  ])
+
+  await Promise.all(
+    [...keys].map((imageKey) =>
+      withStore(IMAGE_STORE, 'readwrite', (store) => store.delete(imageKey)),
+    ),
+  )
+  await withStore(DRAFT_STORE, 'readwrite', (store) => store.delete(key))
+}
+
 /** 저장된 초안과 이미지 파일을 읽고 화면에서 사용할 새 미리보기 URL을 만든다. */
 export const restorePersonDraft = async (key) => {
-  const people = await withStore(DRAFT_STORE, 'readonly', (store) => store.get(key))
+  const savedDraft = await withStore(DRAFT_STORE, 'readonly', (store) => store.get(key))
+  const people = Array.isArray(savedDraft) ? savedDraft : savedDraft?.people
   if (!Array.isArray(people)) return null
 
-  return Promise.all(
-    people.map(async (person) => {
-      if (!person.imageKey) return person
-      const image = await withStore(IMAGE_STORE, 'readonly', (store) => store.get(person.imageKey))
-      return { ...person, imageUrl: image ? URL.createObjectURL(image) : '' }
-    }),
-  )
+  return {
+    people: await Promise.all(
+      people.map(async (person) => {
+        if (!person.imageKey) return person
+        const image = await withStore(IMAGE_STORE, 'readonly', (store) =>
+          store.get(person.imageKey),
+        )
+        return { ...person, imageUrl: image ? URL.createObjectURL(image) : '' }
+      }),
+    ),
+    position: Array.isArray(savedDraft) ? null : (savedDraft.position ?? null),
+    positionUnit: Array.isArray(savedDraft) ? null : (savedDraft.positionUnit ?? null),
+  }
 }
