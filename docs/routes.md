@@ -13,7 +13,7 @@
 | 위키 도서 목록                  | `/wiki`                       | `WikiListPage`                |
 | 이름·저자·ISBN 검색             | `/wiki/search/:searchType`    | `WikiSearchPage`              |
 | 위키 정보 없음                  | `/wiki/add/empty`             | `WikiAddEmptyPage`            |
-| 위키 내용 개요·인물/단체/관계도 | `/wiki/add/page`              | `WikiAddPagePage`             |
+| 위키 내용 개요·인물/단체/관계도 | `/wiki/add/page`              | `WikiAddPage`                 |
 | 신규 인물 추가                  | `/wiki/add/person`            | `WikiRegisterPersonPage`      |
 | 상세 위키 + 제어                | `/wiki/:wikiId`               | `WikiDetailPage`              |
 | 관계도 빈 상태·생성 중·완료     | `/wiki/:wikiId/relations`     | `WikiRelationshipPage`        |

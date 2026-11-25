@@ -22,7 +22,7 @@ const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'))
 const ReadingPage = lazy(() => import('@/pages/ReadingPage'))
 const WikiAddEmptyPage = lazy(() => import('@/pages/WikiAddEmptyPage'))
-const WikiAddPagePage = lazy(() => import('@/pages/WikiAddPagePage'))
+const WikiAddPage = lazy(() => import('@/pages/WikiAddPage'))
 const WikiDetailPage = lazy(() => import('@/pages/WikiDetailPage'))
 const WikiListPage = lazy(() => import('@/pages/WikiListPage'))
 const WikiRegisterEntryPage = lazy(() => import('@/pages/WikiRegisterEntryPage'))
@@ -66,7 +66,7 @@ export const router = createBrowserRouter([
           { path: ROUTES.WIKI, element: renderPage(WikiListPage) },
           { path: ROUTES.WIKI_SEARCH, element: renderPage(WikiSearchPage) },
           { path: ROUTES.WIKI_ADD_EMPTY, element: renderPage(WikiAddEmptyPage) },
-          { path: ROUTES.WIKI_ADD_PAGE, element: renderPage(WikiAddPagePage) },
+          { path: ROUTES.WIKI_ADD_PAGE, element: renderPage(WikiAddPage) },
           { path: ROUTES.WIKI_ADD_PERSON, element: renderPage(WikiRegisterPersonPage) },
           { path: ROUTES.WIKI_DETAIL, element: renderPage(WikiDetailPage) },
           { path: ROUTES.WIKI_RELATION, element: renderPage(WikiRelationshipPage) },

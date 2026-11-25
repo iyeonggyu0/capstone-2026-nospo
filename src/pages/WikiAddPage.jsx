@@ -26,7 +26,7 @@ const previewUpdatePeople = [
 ]
 
 /** 위키 추가 개요: 인물·단체·관계도 진입점을 제공한다. */
-const WikiAddPagePage = () => {
+const WikiAddPage = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const book = location.state?.book ?? (import.meta.env.DEV ? { title: '애주가의 절주 일기' } : {})
@@ -54,6 +54,7 @@ const WikiAddPagePage = () => {
       ? previewUpdatePeople
       : [],
   )
+  const [peopleSort, setPeopleSort] = useState('AFFILIATION')
   const [tab, setTab] = useState('CHARACTER')
   const positionValue = typeof position === 'object' ? position.value : position
   const unitLabel = positionUnit === 'PAGE' ? '쪽' : '화'
@@ -88,6 +89,51 @@ const WikiAddPagePage = () => {
     })
 
   const title = useMemo(() => book.title || '선택한 도서', [book.title])
+  const sortedPeople = useMemo(() => {
+    const importance = { 주인공: 0, 주연: 1, 조연: 2, 단역: 3, 엑스트라: 4 }
+    const byName = (a, b) => (a.name || '').localeCompare(b.name || '', 'ko')
+    return [...people].sort((a, b) => {
+      if (peopleSort === 'NAME') return byName(a, b)
+      if (peopleSort === 'IMPORTANCE') {
+        return (importance[a.role] ?? 5) - (importance[b.role] ?? 5) || byName(a, b)
+      }
+      return (
+        (a.affiliation || '소속 미정').localeCompare(b.affiliation || '소속 미정', 'ko') ||
+        byName(a, b)
+      )
+    })
+  }, [people, peopleSort])
+  const peopleByAffiliation = useMemo(() => {
+    if (peopleSort !== 'AFFILIATION') return null
+    return sortedPeople.reduce((groups, person) => {
+      const affiliation = person.affiliation || '소속 미정'
+      groups.set(affiliation, [...(groups.get(affiliation) ?? []), person])
+      return groups
+    }, new Map())
+  }, [peopleSort, sortedPeople])
+
+  const renderPerson = (person) => (
+    <li className="flex min-h-[72px] items-center" key={person.id}>
+      <button
+        className="flex min-h-[60px] w-full items-center gap-3 text-left"
+        onClick={() => goRegister(person.id)}
+        type="button"
+      >
+        {person.imageUrl ? (
+          <img alt="" className="size-10 rounded-full object-cover" src={person.imageUrl} />
+        ) : (
+          <span aria-hidden="true" className="size-10 rounded-full bg-teal-strong" />
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-body-lg font-medium">{person.name}</span>
+          <span className="text-label text-text-secondary">
+            {person.role || '비중 미정'} · {person.affiliation || '소속 미정'}
+          </span>
+        </span>
+        <span className="pr-2 text-body-lg text-text-secondary">›</span>
+      </button>
+    </li>
+  )
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-[390px] flex-col bg-surface pt-5">
@@ -166,33 +212,32 @@ const WikiAddPagePage = () => {
               ✧ 검수 승인 시 AI 토큰 최대 10개를 보상으로 드려요.
             </div>
             <h2 className="mt-4 text-body-lg font-bold">등장인물</h2>
-            <ul className="mt-2 divide-y divide-border/50">
-              {people.map((person) => (
-                <li className="flex min-h-[72px] items-center" key={person.id}>
-                  <button
-                    className="flex min-h-[60px] w-full items-center gap-3 text-left"
-                    onClick={() => goRegister(person.id)}
-                    type="button"
-                  >
-                    {person.imageUrl ? (
-                      <img
-                        alt=""
-                        className="size-10 rounded-full object-cover"
-                        src={person.imageUrl}
-                      />
-                    ) : (
-                      <span aria-hidden="true" className="size-10 rounded-full bg-teal-strong" />
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-body-lg font-medium">{person.name}</span>
-                      <span className="text-label text-text-secondary">
-                        {person.role || '비중 미정'} · {person.affiliation || '소속 미정'}
-                      </span>
-                    </span>
-                    <span className="pr-2 text-body-lg text-text-secondary">›</span>
-                  </button>
-                </li>
+            <div aria-label="인물 정렬" className="mt-1 flex gap-3 text-caption text-text-muted">
+              {[
+                ['AFFILIATION', '소속'],
+                ['NAME', '이름순'],
+                ['IMPORTANCE', '중요도 순'],
+              ].map(([value, label]) => (
+                <button
+                  aria-pressed={peopleSort === value}
+                  className={peopleSort === value ? 'font-medium text-teal-strong' : ''}
+                  key={value}
+                  onClick={() => setPeopleSort(value)}
+                  type="button"
+                >
+                  {label}
+                </button>
               ))}
+            </div>
+            <ul className="mt-2 divide-y divide-border/50">
+              {peopleByAffiliation
+                ? [...peopleByAffiliation].map(([affiliation, groupedPeople]) => (
+                    <li className="list-none" key={affiliation}>
+                      <h3 className="pt-3 text-label font-semibold">{affiliation}</h3>
+                      <ul>{groupedPeople.map(renderPerson)}</ul>
+                    </li>
+                  ))
+                : sortedPeople.map(renderPerson)}
             </ul>
             <button
               className="min-h-14 w-full text-label text-text-secondary"
@@ -275,4 +320,4 @@ const WikiAddPagePage = () => {
   )
 }
 
-export default WikiAddPagePage
+export default WikiAddPage

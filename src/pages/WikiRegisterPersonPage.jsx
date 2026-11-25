@@ -182,6 +182,8 @@ const GenderIcon = ({ gender, selected = false, size = 'size-4' }) => {
   )
 }
 
+const relationTypes = ['우호', '대립', '중립']
+
 /** 인물 위키 등록·수정 초안의 목록과 기본 정보 편집 화면이다. */
 const WikiRegisterPersonPage = () => {
   const location = useLocation()
@@ -230,6 +232,7 @@ const WikiRegisterPersonPage = () => {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [entryDraft, setEntryDraft] = useState(null)
   const [relationDraft, setRelationDraft] = useState(null)
+  const [dropTargetType, setDropTargetType] = useState(null)
 
   useEffect(() => {
     const requestedPersonId = location.state?.personId
@@ -694,17 +697,29 @@ const WikiRegisterPersonPage = () => {
       setNotice(`공개 지점은 읽은 지점 ${positionValue}${positionUnitLabel}보다 뒤일 수 없어요.`)
       return
     }
-    const relations = { ...(activePerson.relations ?? {}) }
-    const group = relationDraft.type
-    relations[group] = [
-      ...(relations[group] ?? []),
-      {
-        name: relationDraft.name.trim(),
-        revealAt: Number(relationDraft.revealAt) || positionValue,
-      },
-    ]
     setPeople((items) =>
-      items.map((person) => (person.id === activePerson.id ? { ...person, relations } : person)),
+      items.map((person) => {
+        if (person.id !== activePerson.id) return person
+        const relations = Object.fromEntries(
+          Object.entries(person.relations ?? {}).map(([type, entries]) => [type, [...entries]]),
+        )
+        if (relationDraft.index != null) {
+          const oldType = relationDraft.originalType
+          relations[oldType] = (relations[oldType] ?? []).filter(
+            (_, index) => index !== relationDraft.index,
+          )
+          if (relations[oldType].length === 0) delete relations[oldType]
+        }
+        const group = relationDraft.type
+        relations[group] = [
+          ...(relations[group] ?? []),
+          {
+            name: relationDraft.name.trim(),
+            revealAt: Number(relationDraft.revealAt) || positionValue,
+          },
+        ]
+        return { ...person, relations }
+      }),
     )
     setRelationDraft(null)
     setIsDirty(true)
@@ -714,6 +729,23 @@ const WikiRegisterPersonPage = () => {
     if (!activePerson) return
     const relations = { ...(activePerson.relations ?? {}) }
     relations[group] = relations[group].filter((_, i) => i !== index)
+    setPeople((items) =>
+      items.map((person) => (person.id === activePerson.id ? { ...person, relations } : person)),
+    )
+    setIsDirty(true)
+  }
+
+  const moveRelation = (sourceType, sourceIndex, targetType) => {
+    if (!activePerson || sourceType === targetType) return
+    const relations = Object.fromEntries(
+      Object.entries(activePerson.relations ?? {}).map(([type, entries]) => [type, [...entries]]),
+    )
+    const sourceEntries = relations[sourceType] ?? []
+    const [entry] = sourceEntries.splice(sourceIndex, 1)
+    if (!entry) return
+    if (sourceEntries.length) relations[sourceType] = sourceEntries
+    else delete relations[sourceType]
+    relations[targetType] = [...(relations[targetType] ?? []), entry]
     setPeople((items) =>
       items.map((person) => (person.id === activePerson.id ? { ...person, relations } : person)),
     )
@@ -1007,18 +1039,20 @@ const WikiRegisterPersonPage = () => {
                     className="space-y-2 rounded-lg bg-control-neutral p-3"
                     onSubmit={saveRelation}
                   >
-                    <select
-                      aria-label="관계 유형"
-                      className="h-9 w-full rounded-md bg-surface px-2 text-label"
-                      onChange={(event) =>
-                        setRelationDraft((draft) => ({ ...draft, type: event.target.value }))
-                      }
-                      value={relationDraft.type}
-                    >
-                      <option value="우호">우호</option>
-                      <option value="대립">대립</option>
-                      <option value="중립">중립</option>
-                    </select>
+                    <label className="flex items-center gap-2 text-caption text-text-secondary">
+                      관계 유형
+                      <select
+                        className="h-9 flex-1 rounded-md bg-surface px-2 text-label"
+                        onChange={(event) =>
+                          setRelationDraft((draft) => ({ ...draft, type: event.target.value }))
+                        }
+                        value={relationDraft.type}
+                      >
+                        {relationTypes.map((type) => (
+                          <option key={type}>{type}</option>
+                        ))}
+                      </select>
+                    </label>
                     <select
                       aria-label="관계를 맺을 인물"
                       className="h-9 w-full rounded-md bg-surface px-2 text-label"
@@ -1075,47 +1109,108 @@ const WikiRegisterPersonPage = () => {
                     인물 검색 <span className="ml-auto text-text-muted">추가 ＋</span>
                   </button>
                 )}
-                {Object.entries(activePerson.relations ?? {}).map(([relation, names], index) => (
-                  <section className="mt-3" key={relation}>
-                    <h4 className="mb-1 text-body font-bold">{relation}</h4>
-                    <ul
-                      className={`border-l pl-3 ${index === 0 ? 'border-teal-strong' : index === 1 ? 'border-red-destructive' : 'border-text-secondary'}`}
+                {relationTypes.map((relation, index) => {
+                  const names = activePerson.relations?.[relation] ?? []
+                  return (
+                    <section
+                      className={`mt-3 min-h-20 rounded-md transition-colors ${dropTargetType === relation ? 'bg-teal-selected/10 ring-2 ring-teal-selected' : ''}`}
+                      key={relation}
+                      onDragEnter={(event) => {
+                        event.preventDefault()
+                        setDropTargetType(relation)
+                      }}
+                      onDragLeave={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget))
+                          setDropTargetType(null)
+                      }}
+                      onDragOver={(event) => {
+                        event.preventDefault()
+                        event.dataTransfer.dropEffect = 'move'
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault()
+                        setDropTargetType(null)
+                        try {
+                          const payload = JSON.parse(
+                            event.dataTransfer.getData('application/x-nospo-relation'),
+                          )
+                          if (payload.personId === activePerson.id) {
+                            moveRelation(payload.sourceType, payload.sourceIndex, relation)
+                          }
+                        } catch {
+                          // Ignore drops that do not contain a relation row.
+                        }
+                      }}
                     >
-                      {names.map((relationEntry, itemIndex) => {
-                        const name =
-                          typeof relationEntry === 'string' ? relationEntry : relationEntry.name
-                        const revealAt =
-                          typeof relationEntry === 'string'
-                            ? 0
-                            : (relationEntry.revealAt ?? positionValue)
-                        return (
-                          <li
-                            className="flex min-h-[60px] items-center gap-3"
-                            key={`${relation}-${itemIndex}`}
-                          >
-                            <span
-                              className="size-10 shrink-0 rounded-full bg-teal-strong"
-                              aria-hidden="true"
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-body">{name}</span>
-                              <span className="text-caption text-text-secondary">
-                                {revealAt ? `${revealAt}${positionUnitLabel}` : '공개 지점 미정'}
-                              </span>
-                            </span>
-                            <button
-                              className="text-label text-red-destructive"
-                              onClick={() => deleteRelation(relation, itemIndex)}
-                              type="button"
+                      <h4 className="mb-1 text-body font-bold">{relation}</h4>
+                      <ul
+                        className={`border-l pl-3 ${index === 0 ? 'border-teal-strong' : index === 1 ? 'border-red-destructive' : 'border-text-secondary'}`}
+                      >
+                        {names.map((relationEntry, itemIndex) => {
+                          const name =
+                            typeof relationEntry === 'string' ? relationEntry : relationEntry.name
+                          const revealAt =
+                            typeof relationEntry === 'string'
+                              ? 0
+                              : (relationEntry.revealAt ?? positionValue)
+                          return (
+                            <li
+                              className="flex min-h-[60px] cursor-grab items-center gap-3 active:cursor-grabbing"
+                              draggable
+                              key={`${relation}-${itemIndex}`}
+                              onDragStart={(event) => {
+                                event.dataTransfer.effectAllowed = 'move'
+                                event.dataTransfer.setData(
+                                  'application/x-nospo-relation',
+                                  JSON.stringify({
+                                    personId: activePerson.id,
+                                    sourceType: relation,
+                                    sourceIndex: itemIndex,
+                                  }),
+                                )
+                              }}
                             >
-                              삭제
-                            </button>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </section>
-                ))}
+                              <span
+                                className="size-10 shrink-0 rounded-full bg-teal-strong"
+                                aria-hidden="true"
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-body">{name}</span>
+                                <span className="text-caption text-text-secondary">
+                                  {revealAt ? `${revealAt}${positionUnitLabel}` : '공개 지점 미정'}
+                                </span>
+                              </span>
+                              <div className="flex shrink-0 gap-2">
+                                <button
+                                  className="text-label text-teal-strong"
+                                  onClick={() =>
+                                    setRelationDraft({
+                                      name,
+                                      type: relation,
+                                      originalType: relation,
+                                      index: itemIndex,
+                                      revealAt: revealAt || positionValue,
+                                    })
+                                  }
+                                  type="button"
+                                >
+                                  편집
+                                </button>
+                                <button
+                                  className="text-label text-red-destructive"
+                                  onClick={() => deleteRelation(relation, itemIndex)}
+                                  type="button"
+                                >
+                                  삭제
+                                </button>
+                              </div>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </section>
+                  )
+                })}
               </div>
             ) : (
               <>
@@ -1191,45 +1286,52 @@ const WikiRegisterPersonPage = () => {
                         아직 등록한 내용이 없어요.
                       </li>
                     )}
-                    {getEntriesForTab(activePerson, selectedTab).map((entry, index) => (
-                      <li
-                        className={`flex items-center gap-2 border-b border-border/50 ${selectedTab === 'ABILITY' ? 'min-h-[68px]' : 'min-h-[48px]'}`}
-                        key={`${entry.title}-${index}`}
-                      >
-                        {selectedTab === 'ABILITY' ? (
-                          <>
-                            <span className="shrink-0 text-label text-teal-strong">
-                              Ⅱ {entry.title}
+                    {getEntriesForTab(activePerson, selectedTab)
+                      .map((entry, index) => ({ entry, index }))
+                      .sort(
+                        (a, b) =>
+                          Number(b.entry.revealAt || 0) - Number(a.entry.revealAt || 0) ||
+                          a.index - b.index,
+                      )
+                      .map(({ entry, index }) => (
+                        <li
+                          className={`flex items-center gap-2 border-b border-border/50 ${selectedTab === 'ABILITY' ? 'min-h-[68px]' : 'min-h-[48px]'}`}
+                          key={`${entry.title}-${index}`}
+                        >
+                          {selectedTab === 'ABILITY' ? (
+                            <>
+                              <span className="shrink-0 text-label text-teal-strong">
+                                Ⅱ {entry.title}
+                              </span>
+                              <span className="min-w-0 flex-1 text-caption text-text-secondary">
+                                {entry.content}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="min-w-0 flex-1 truncate text-body-sm">
+                              {entry.title}
                             </span>
-                            <span className="min-w-0 flex-1 text-caption text-text-secondary">
-                              {entry.content}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="min-w-0 flex-1 truncate text-body-sm">
-                            {entry.title}
+                          )}
+                          <span className="shrink-0 text-caption-xs text-text-secondary">
+                            {entry.revealAt}
+                            {positionUnitLabel}
                           </span>
-                        )}
-                        <span className="shrink-0 text-caption-xs text-text-secondary">
-                          {entry.revealAt}
-                          {positionUnitLabel}
-                        </span>
-                        <button
-                          className="text-label text-teal-strong"
-                          onClick={() => setEntryDraft({ ...entry, index })}
-                          type="button"
-                        >
-                          편집
-                        </button>
-                        <button
-                          className="text-label text-red-destructive"
-                          onClick={() => deleteEntry(index)}
-                          type="button"
-                        >
-                          삭제
-                        </button>
-                      </li>
-                    ))}
+                          <button
+                            className="text-label text-teal-strong"
+                            onClick={() => setEntryDraft({ ...entry, index })}
+                            type="button"
+                          >
+                            편집
+                          </button>
+                          <button
+                            className="text-label text-red-destructive"
+                            onClick={() => deleteEntry(index)}
+                            type="button"
+                          >
+                            삭제
+                          </button>
+                        </li>
+                      ))}
                   </ul>
                 )}
               </>

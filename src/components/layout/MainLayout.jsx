@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ROUTES } from '@/constants/routes'
 import { BottomNavigation } from './BottomNavigation'
@@ -61,14 +62,22 @@ const getHeaderProps = (pathname, search, navigate) => {
 export const MainLayout = () => {
   const { pathname, search } = useLocation()
   const navigate = useNavigate()
+  const mainRef = useRef(null)
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0
+  }, [pathname])
   const usePageHeader =
     pathname.startsWith(ROUTES.WIKI_REVIEW_LIST) ||
+    pathname === ROUTES.WIKI_ADD_PAGE ||
+    pathname === ROUTES.WIKI_ADD_PERSON ||
+    pathname === ROUTES.WIKI_REGISTER_PERSON ||
     pathname === ROUTES.MY_PROFILE ||
     (pathname === ROUTES.MY && new URLSearchParams(search).get('view') === 'transactions')
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <main
+        ref={mainRef}
         className={`min-h-0 flex-1 overflow-y-auto ${pathname.startsWith('/wiki/search/') ? 'bg-canvas' : 'bg-surface'}`}
       >
         {!usePageHeader && <Header {...getHeaderProps(pathname, search, navigate)} />}
