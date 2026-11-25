@@ -33,4 +33,4 @@ apiClient → features/{domain}/api → TanStack Query hook → 화면 컴포넌
 - 핵심 함수·컴포넌트·hook·API·복잡한 기능에는 한글 `/** */` JSDoc을 작성한다.
 - 화살표 함수 선언을 우선한다.
 - 이동은 `Link`, 실행은 `button`을 사용한다.
-- 아이콘 버튼의 접근 가능한 이름, 44px 이상의 클릭 영역, 로딩·빈·오류 상태, 키보드 focus를 확인한다.
+- 아이콘 버튼의 접근 가능한 이름, 36px 이상의 클릭 영역, 로딩·빈·오류 상태, 키보드 focus를 확인한다.

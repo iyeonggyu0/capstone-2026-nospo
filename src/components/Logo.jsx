@@ -1,4 +1,4 @@
-import logo from '@/assets/icons/nav/logo.svg'
+import logo from '@/assets/logo.svg'
 
 /** NOSPO 브랜드 로고를 재사용 가능한 이미지로 렌더링한다. */
 export const Logo = ({ className = '', imageClassName = 'size-8' }) => {

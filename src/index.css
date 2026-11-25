@@ -46,6 +46,8 @@
   --color-blue-action: #3572a8;
   --color-blue-info: #40a1ff;
   --color-blue-info-light: #e3f0fb;
+  --color-teal-reading: #a0c7bf;
+  --color-blue-reading: #b5d4ec;
   --color-amber-foreground: #8a6418;
   --color-amber-background: #fff8e7;
   --color-red-destructive: #a4423c;
@@ -53,6 +55,25 @@
 }
 
 @layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 999px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   html,
   body,
   #root {
@@ -61,6 +82,15 @@
 
   body {
     margin: 0;
+  }
+
+  button:not(:disabled),
+  a[href],
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
   }
 
   :focus-visible {

@@ -9,6 +9,8 @@ export const Header = ({
   showBackButton = false,
   rightContent,
   onBack,
+  compact = false,
+  hideLogo = false,
 }) => {
   const showBack = variant === 'back' || showBackButton
 
@@ -28,12 +30,12 @@ export const Header = ({
 
   return (
     <header
-      className={`flex h-[76px] w-full gap-3 px-5 pt-5 ${showBack ? 'items-center' : 'items-start'}`}
+      className={`flex w-full gap-3 px-5 pt-5 ${compact ? 'h-16' : 'h-[76px]'} ${showBack ? 'items-center' : 'items-start'}`}
       aria-label={title ?? 'NOSPO'}
     >
       {showBack && (
         <button
-          className="flex size-5 shrink-0 items-center justify-center"
+          className="-m-2 flex size-9 shrink-0 cursor-pointer items-center justify-center p-2"
           type="button"
           aria-label="뒤로 가기"
           onClick={onBack}
@@ -47,9 +49,9 @@ export const Header = ({
             <h1 className="text-title leading-7 font-bold text-text-primary">{title}</h1>
             {subtitle && <p className="text-caption leading-4 text-text-secondary">{subtitle}</p>}
           </>
-        ) : (
+        ) : !hideLogo ? (
           <Logo />
-        )}
+        ) : null}
       </div>
       {rightContent && (
         <div className="shrink-0 text-label leading-[18px] font-medium text-text-secondary">
