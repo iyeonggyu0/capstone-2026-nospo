@@ -21,6 +21,8 @@ export const ROUTES = {
   WIKI_REGISTER_PERSON: '/wiki/register/person',
   WIKI_REGISTER_GROUP: '/wiki/register/group',
   WIKI_REGISTER_GROUP_DETAIL: '/wiki/register/group/detail',
+  WIKI_VIEW_GROUP: '/wiki/view/group',
+  WIKI_VIEW_GROUP_DETAIL: '/wiki/view/group/detail',
   WIKI_REVIEW_LIST: '/wiki/reviews',
   WIKI_REVIEW_PROGRESS: '/wiki/reviews/:reviewId',
   MY: '/my',
