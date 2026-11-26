@@ -1,13 +1,11 @@
 import { useId, useRef, useState } from 'react'
 import plusSmallIcon from '@/assets/icons/wiki/plus-small.svg'
-import { useDragReorder } from '../hooks/useDragReorder'
 import {
   MILESTONE_MAX_LENGTH,
   getUnlockLabel,
   validateMilestoneContent,
   validateUnlockEpisode,
 } from '../utils'
-import { GroupDragHandle } from './GroupDragHandle'
 
 /** 새 행적을 추가하는 중임을 나타내는 편집 대상 값이다. */
 const NEW_MILESTONE = 'new'
@@ -111,30 +109,11 @@ const MilestoneEditRow = ({
 }
 
 /**
- * 주요 행적 한 줄이다. 내용과 해금 시점을 보여주고, 편집 모드에서는 순서 손잡이와 `편집`·`삭제` 버튼을 함께 보여준다.
- * 손잡이는 편집 중인 다른 줄이 있거나 순서를 바꿀 수 없을 때 비활성이 된다.
+ * 주요 행적 한 줄이다. 내용과 해금 시점을 보여주고, 편집 모드에서는 `편집`·`삭제` 버튼을 함께 보여준다.
  */
-const MilestoneItem = ({
-  milestone,
-  episodeUnit,
-  editable,
-  isReorderable,
-  getItemProps,
-  getHandleProps,
-  onEdit,
-  onRemove,
-}) => {
-  const { className, ...itemProps } = getItemProps(milestone.id, 'milestones')
-
+const MilestoneItem = ({ milestone, episodeUnit, editable, onEdit, onRemove }) => {
   return (
-    <li className={`flex h-10 items-center gap-2.5 ${className}`} {...itemProps}>
-      {editable && (
-        <GroupDragHandle
-          disabled={!isReorderable}
-          label={`${milestone.content} 순서 바꾸기`}
-          {...getHandleProps(milestone.id, 'milestones')}
-        />
-      )}
+    <li className="flex h-10 items-center gap-2.5">
       <p className="min-w-0 flex-1 text-body-sm text-text-primary">{milestone.content}</p>
       <span className="min-w-7 shrink-0 text-right text-caption-sm text-text-secondary opacity-68">
         {getUnlockLabel(milestone, episodeUnit)}
@@ -167,8 +146,8 @@ const MilestoneItem = ({
 
 /**
  * 단체의 주요 행적을 해금 시점과 함께 전달받은 순서대로 보여준다. 행적이 없으면 빈 상태 문구를 표시한다.
- * `editable`이면 순서 손잡이, 입력 줄, `편집`·`삭제` 버튼, 하단 `추가 +`가 나타나며 한 번에 한 줄만 편집한다.
- * 순서 정렬(최신 순)은 부모가 맡으며, 손잡이로 바꾼 순서는 `onReorder`로 알린다.
+ * `editable`이면 입력 줄, `편집`·`삭제` 버튼, 하단 `추가 +`가 나타나며 한 번에 한 줄만 편집한다.
+ * 순서 정렬(최신 순)은 부모가 맡으며, 이 목록에서는 순서를 직접 바꿀 수 없다.
  *
  * @param {object} props 컴포넌트 props
  * @param {Array<{ id: string, content: string, unlockLabel?: string, unlockEpisode?: number }>} [props.milestones=[]] 행적 목록
@@ -178,7 +157,6 @@ const MilestoneItem = ({
  * @param {(input: { content: string, unlockEpisode: number }) => void} [props.onAdd] 새 행적을 저장할 때 실행
  * @param {(id: string, input: { content: string, unlockEpisode: number }) => void} [props.onUpdate] 행적을 고쳐 저장할 때 실행
  * @param {(id: string) => void} [props.onRemove] `삭제`를 눌렀을 때 실행
- * @param {(id: string, toIndex: number) => void} [props.onReorder] 손잡이로 순서를 바꿨을 때 실행. `toIndex`는 그 행적을 뺀 목록 기준 위치다.
  */
 export const GroupMilestoneList = ({
   milestones = [],
@@ -188,14 +166,8 @@ export const GroupMilestoneList = ({
   onAdd,
   onUpdate,
   onRemove,
-  onReorder,
 }) => {
   const [editingId, setEditingId] = useState(null)
-  const { getItemProps, getListProps, getHandleProps } = useDragReorder({
-    lists: { milestones: milestones.map((milestone) => milestone.id) },
-    onMove: (id, _listKey, toIndex) => onReorder?.(id, toIndex),
-  })
-  const { ref: listRef } = getListProps('milestones')
   const showEmpty = milestones.length === 0 && editingId !== NEW_MILESTONE
 
   return (
@@ -212,7 +184,7 @@ export const GroupMilestoneList = ({
         <p className="py-8 text-center text-body text-text-secondary">아직 등록된 행적이 없어요.</p>
       )}
       {(milestones.length > 0 || editingId === NEW_MILESTONE) && (
-        <ul ref={listRef}>
+        <ul>
           {editingId === NEW_MILESTONE && (
             <MilestoneEditRow
               episodeUnit={episodeUnit}
@@ -242,9 +214,6 @@ export const GroupMilestoneList = ({
               <MilestoneItem
                 editable={editable}
                 episodeUnit={episodeUnit}
-                getHandleProps={getHandleProps}
-                getItemProps={getItemProps}
-                isReorderable={Boolean(onReorder) && editingId === null}
                 key={milestone.id}
                 milestone={milestone}
                 onEdit={() => setEditingId(milestone.id)}

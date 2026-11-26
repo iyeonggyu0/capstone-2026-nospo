@@ -65,8 +65,8 @@ describe('GroupListScreen', () => {
     expect(html).toContain('그리핀도르 삭제')
     expect(html).toContain('래번클로 삭제')
     expect(html).toContain('검수 제출')
-    expect(html).toContain('저장 안 함')
-    expect(html).toContain('임시 저장 후 돌아가기')
+    expect(html).toContain('저장 안함')
+    expect(html).toContain('임시 저장')
   })
 
   it('편집 모드에서 변경이 없으면 검수 제출 버튼이 비활성이다', () => {
@@ -115,8 +115,8 @@ describe('GroupDetailScreen', () => {
     expect(html).toContain('인물 검색')
     expect(html).toContain('서하준 삭제')
     expect(html).toContain('검수 제출')
-    expect(html).toContain('저장 안 함')
-    expect(html).toContain('임시 저장 후 돌아가기')
+    expect(html).toContain('저장 안함')
+    expect(html).toContain('임시 저장')
   })
 
   it('변경이 없으면 검수 제출 버튼이 비활성이다', () => {
@@ -181,7 +181,7 @@ describe('GroupSubmitBar 임시 저장 실패', () => {
   it('평소에는 임시 저장 후 돌아가기 버튼만 보이고 오류 안내는 없다', () => {
     const html = renderWithRouter(<GroupSubmitBar onSaveDraft={() => {}} />)
 
-    expect(html).toContain('임시 저장 후 돌아가기')
+    expect(html).toContain('임시 저장')
     expect(html).not.toContain('role="alert"')
   })
 
@@ -195,7 +195,7 @@ describe('GroupSubmitBar 임시 저장 실패', () => {
 
     expect(html).toContain('임시 저장에 실패했어요. 다시 시도해 주세요.')
     expect(html).toContain('role="alert"')
-    expect(html).toContain('임시 저장 후 돌아가기')
+    expect(html).toContain('임시 저장')
   })
 })
 
@@ -321,7 +321,7 @@ describe('GroupMilestoneList', () => {
     expect(html).toContain('최신 순')
   })
 
-  it('편집 모드에서는 구성원·관계·행적에 순서 손잡이 버튼을 보여준다', () => {
+  it('편집 모드에서는 구성원·관계에 순서 손잡이 버튼을 보여준다', () => {
     const member = renderWithRouter(
       <GroupDetailScreen group={{ ...group, members: group.members }} mode="edit" />,
     )
@@ -329,15 +329,12 @@ describe('GroupMilestoneList', () => {
       <GroupRelationList editable onMove={() => {}} relations={group.relations} />,
     )
     const milestone = renderWithRouter(
-      <GroupMilestoneList editable milestones={group.milestones} onReorder={() => {}} />,
+      <GroupMilestoneList editable milestones={group.milestones} />,
     )
 
     expect(member).toContain('서하준 순서 바꾸기')
     expect(relation).toContain('래번클로 순서 바꾸기')
-    expect(milestone).toContain('첫 번째 행적 순서 바꾸기')
-    expect(renderWithRouter(<GroupMilestoneList milestones={group.milestones} />)).not.toContain(
-      '순서 바꾸기',
-    )
+    expect(milestone).not.toContain('순서 바꾸기')
   })
 
   it('편집 모드의 관계는 비어 있는 구역도 보여줘 다른 구역으로 옮길 수 있게 한다', () => {

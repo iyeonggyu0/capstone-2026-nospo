@@ -43,7 +43,7 @@ export const GroupSubmitBar = ({
         onClick={onDiscard}
         type="button"
       >
-        저장 안 함
+        저장 안함
       </button>
       <span aria-hidden="true">|</span>
       <button
@@ -52,7 +52,7 @@ export const GroupSubmitBar = ({
         onClick={onSaveDraft}
         type="button"
       >
-        임시 저장 후 돌아가기
+        임시 저장
       </button>
     </div>
   </div>

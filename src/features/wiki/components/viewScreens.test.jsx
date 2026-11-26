@@ -60,7 +60,7 @@ describe('GroupViewListScreen', () => {
 
     expect(html).not.toContain('삭제')
     expect(html).not.toContain('검수 제출')
-    expect(html).not.toContain('저장 안 함')
+    expect(html).not.toContain('저장 안함')
     expect(html).not.toContain('임시 저장')
     expect(html).not.toContain('뒤로 가기')
   })
