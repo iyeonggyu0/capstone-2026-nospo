@@ -25,7 +25,6 @@ const isSameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b)
  *   removeMilestone: (id: string) => void,
  *   moveMember: (id: string, toIndex: number) => void,
  *   moveRelation: (id: string, toType: string, toIndex: number) => void,
- *   moveMilestone: (id: string, toIndex: number) => void,
  *   reset: () => void,
  *   markSaved: () => void,
  * }} 현재 초안과 조작 함수
@@ -104,11 +103,6 @@ export const useGroupDetailDraft = (group) => {
     setRelations((previous) => moveRelationItem(previous, id, toType, toIndex))
   }
 
-  /** 주요 행적 하나를 목록의 새 위치로 옮긴다. */
-  const moveMilestone = (id, toIndex) => {
-    setMilestones((previous) => moveItem(previous, id, toIndex))
-  }
-
   /** 새 주요 행적을 해금 시점 순서에 맞는 위치에 추가한다. 직접 바꾼 기존 순서는 유지한다. */
   const addMilestone = ({ content, unlockEpisode }) => {
     lastDraftNumber.current += 1
@@ -172,7 +166,6 @@ export const useGroupDetailDraft = (group) => {
     removeMilestone,
     moveMember,
     moveRelation,
-    moveMilestone,
     reset,
     markSaved,
   }

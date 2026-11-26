@@ -167,7 +167,6 @@ const GroupDetailContent = ({
             milestones={draft.milestones}
             onAdd={draft.addMilestone}
             onRemove={draft.removeMilestone}
-            onReorder={draft.moveMilestone}
             onUpdate={draft.updateMilestone}
           />
         )}
