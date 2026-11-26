@@ -1,3 +1,5 @@
+import bookCover from '@/assets/images/wiki/book-cover.png'
+
 // 개발 중 위키 내용(보기) 화면을 눈으로 확인하기 위한 샘플이다. 서버나 모의 API 데이터에는 섞이지 않는다.
 // 이름은 모두 예시이며, 개발 모드에서 주소에 `preview`가 있을 때만 쓴다.
 
@@ -7,6 +9,7 @@ export const PREVIEW_GROUP_PREFIX = 'preview-'
 /** 샘플 화면에서 쓰는 도서 정보다. */
 export const PREVIEW_BOOK = {
   title: '애주가의 절주 일기',
+  coverImageSrc: bookCover,
   progressLabel: '32화까지 읽음',
   statusLabel: '스포일러 보호 중',
   editLabel: '32화 수정',

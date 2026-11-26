@@ -127,6 +127,13 @@ describe('GroupViewListContainer (위키 내용 보기)', () => {
     expect(html).not.toContain('검수 제출')
   })
 
+  it('서버의 전체 인원수는 진도 이후 구성원까지 세므로 카드에서 숨기고 -로 보여준다', async () => {
+    const html = await renderContainer(<GroupViewListContainer />, seedList)
+
+    expect(html).not.toContain('1명')
+    expect(html).toContain('>-<')
+  })
+
   it('편집 화면에서 임시로 추가한 단체는 보기 목록에 섞이지 않는다', async () => {
     useGroupDraftStore.getState().addGroup('default', { name: '임시 단체', unlockEpisode: 1 })
 

@@ -4,7 +4,12 @@ import sparklesIcon from '@/assets/icons/wiki/sparkles.svg'
 import { BookContext } from '@/components/BookContext'
 import { Notice } from '@/components/Notice'
 import { Button, WikiCategory } from '@/components/common-ui'
-import { PROGRESS_HINT, REWARD_NOTICE, SCREEN_MIN_HEIGHT_CLASS } from '../constants'
+import {
+  PROGRESS_HINT,
+  REWARD_NOTICE,
+  SAVE_DRAFT_ERROR,
+  SCREEN_MIN_HEIGHT_CLASS,
+} from '../constants'
 import { useGroupDraft } from '../hooks/useGroupDraft'
 import { GroupAddModal } from './GroupAddModal'
 import { GroupCard } from './GroupCard'
@@ -66,6 +71,7 @@ export const GroupListEmpty = () => (
  * @param {(changes: { addedGroups: Array, removedGroupIds: string[] }) => Promise<unknown>} [props.onSubmit] `검수 제출`을 눌렀을 때 추가한 단체와 삭제한 단체 식별자와 함께 실행하며 성공하면 resolve, 실패하면 reject한다. 없거나 변경이 없으면 제출 버튼이 비활성
  * @param {boolean} [props.isSubmitting=false] 제출 요청 중인지 여부
  * @param {string} [props.submitError] 제출 실패 안내 문구
+ * @param {() => void} [props.onLeave] `저장 안함`·`임시 저장`을 끝낸 뒤 실행. 이전 화면으로 이동하는 일은 부모(페이지)가 처리한다. 없으면 화면에 머문다.
  */
 export const GroupListScreen = ({
   book,
@@ -81,11 +87,32 @@ export const GroupListScreen = ({
   onSubmit,
   isSubmitting = false,
   submitError,
+  onLeave,
 }) => {
   const draft = useGroupDraft(groups, editionId)
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const isReady = status === 'ready'
   const isEditing = mode === 'edit' || draft.hasChanges
+
+  /** 저장하지 않고 나간다. 이번에 바꾼 내용은 마지막 임시 저장 상태로 되돌리고 이전 화면으로 이동한다. */
+  const handleDiscard = () => {
+    draft.discard()
+    onLeave?.()
+  }
+
+  /** 지금 내용을 임시 저장하고 이전 화면으로 이동한다. 저장에 실패하면 안내를 보여주고 화면에 머문다. */
+  const handleSaveDraft = () => {
+    try {
+      draft.save()
+    } catch {
+      setSaveError(SAVE_DRAFT_ERROR)
+      return
+    }
+
+    setSaveError('')
+    onLeave?.()
+  }
 
   /** 추가한 단체를 제출하고, 성공하면 초안을 비운다. 실패하면 입력한 내용을 그대로 둔다. */
   const handleSubmit = async () => {
@@ -174,8 +201,9 @@ export const GroupListScreen = ({
         <GroupSubmitBar
           errorMessage={submitError}
           isSubmitting={isSubmitting}
-          onDiscard={draft.discard}
-          onSaveDraft={draft.save}
+          onDiscard={handleDiscard}
+          onSaveDraft={handleSaveDraft}
+          saveDraftError={saveError || undefined}
           onSubmit={onSubmit && draft.hasChanges ? handleSubmit : undefined}
         />
       )}

@@ -16,6 +16,7 @@ import { GroupListScreen } from './GroupListScreen'
  * @param {string | null} [props.mode] `view`이면 보기 상태, 그 외(없음 포함)는 처음부터 편집 상태
  * @param {(value: string) => void} [props.onCategoryChange] 유형 칩(인물·단체)을 눌렀을 때 실행. 이동은 부모(페이지)가 처리한다.
  * @param {(result: { proposalId?: string }) => void} [props.onSubmitted] 검수 제출이 성공했을 때 서버 응답과 함께 실행. 이동은 부모(페이지)가 처리한다.
+ * @param {() => void} [props.onLeave] `저장 안함`·`임시 저장`을 끝낸 뒤 실행. 이전 화면으로 이동하는 일은 부모(페이지)가 처리한다.
  */
 export const GroupListContainer = ({
   editionId,
@@ -25,6 +26,7 @@ export const GroupListContainer = ({
   mode,
   onCategoryChange,
   onSubmitted,
+  onLeave,
 }) => {
   const query = useGroupList(editionId)
   const submit = useSubmitGroups()
@@ -43,6 +45,7 @@ export const GroupListContainer = ({
       isSubmitting={submit.isPending}
       mode={mode === 'view' ? 'view' : 'edit'}
       onCategoryChange={onCategoryChange}
+      onLeave={onLeave}
       onRetry={() => query.refetch()}
       onSubmit={async ({ addedGroups, removedGroupIds }) => {
         const result = await submit.mutateAsync({

@@ -1,3 +1,5 @@
+import bookCover from '@/assets/images/wiki/book-cover.png'
+
 // 개발용 메모리 모의 응답: 서버나 실제 데이터를 변경하지 않는다.
 // 제출 요청에 '실패'라는 글자가 들어 있으면 서버 오류를 흉내 내서, 실패해도 입력이 유지되는지 시험할 수 있다.
 /** 서버 응답을 기다리는 느낌을 내기 위한 모의 지연 시간(ms)이다. 테스트에서는 기다리지 않는다. */
@@ -6,6 +8,7 @@ const WAIT_MS = 400
 /** 모의 도서 정보. 단체 목록과 검수 진행 화면의 도서 카드에 쓴다. */
 const book = {
   title: '애주가의 절주 일기',
+  coverImageSrc: bookCover,
   progressLabel: '32화까지 읽음',
   statusLabel: '스포일러 보호 중',
   editLabel: '32화 수정',

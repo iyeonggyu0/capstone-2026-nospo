@@ -6,6 +6,7 @@ import { GroupViewListScreen } from './GroupViewListScreen'
 /**
  * 위키 내용(보기)의 단체 목록을 조회해 읽기 전용 목록 화면에 전달한다.
  * 서버에 올라간 단체만 보여주며, 편집 화면의 임시 초안은 섞지 않는다.
+ * 인원수는 현재 진도 이후의 구성원 수가 드러나지 않도록 카드에서 `-`로 보여준다.
  * 이동 때 넘어온 진도(`position`)가 있으면 서버가 준 도서 정보의 진도와 안내 문구를 그 값으로 바꿔 보여준다.
  *
  * @param {object} props 컴포넌트 props
@@ -28,6 +29,12 @@ export const GroupViewListContainer = ({
 }) => {
   const showPreview = import.meta.env.DEV && preview
   const query = useGroupList(editionId, { enabled: !showPreview })
+  // 목록의 인원수는 서버의 전체 인원이라 현재 진도 이후에 등장하는 구성원까지 세므로, 존재가 드러나지 않게 숨긴다.
+  // 진도에 맞춘 인원은 단체 상세(보기)에서 보여준다.
+  const items = (showPreview ? PREVIEW_GROUP_ITEMS : query.data?.items)?.map((group) => ({
+    ...group,
+    memberCount: undefined,
+  }))
   const book = applyWikiContext(showPreview ? PREVIEW_BOOK : query.data?.book, {
     position,
     wikiMode,
@@ -43,7 +50,7 @@ export const GroupViewListContainer = ({
       book={book}
       editState={editState}
       episodeUnit={book?.episodeUnit}
-      groups={showPreview ? PREVIEW_GROUP_ITEMS : query.data?.items}
+      groups={items}
       onCategoryChange={onCategoryChange}
       onRetry={() => query.refetch()}
       personCount={showPreview ? PREVIEW_PERSON_COUNT : query.data?.personCount}

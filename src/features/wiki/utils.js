@@ -329,6 +329,20 @@ export const insertMilestoneLatest = (milestones, milestone) => {
   return [...milestones.slice(0, index), milestone, ...milestones.slice(index)]
 }
 
+/**
+ * 이미 있는 임시 관계·행적 식별자(`draft-relation-N`, `draft-milestone-N`)의 번호 중 가장 큰 값을 찾는다.
+ * 임시 저장을 복원한 뒤에도 새 항목의 번호를 이어서 매겨, 기존 임시 항목과 식별자가 겹치지 않게 한다.
+ *
+ * @param {{ relations?: object, milestones?: Array<{ id?: string }> }} detail 단체 상세(관계·행적)
+ * @returns {number} 가장 큰 임시 번호. 임시 항목이 없으면 0
+ */
+export const getMaxDraftNumber = ({ relations = {}, milestones = [] } = {}) =>
+  [...Object.values(relations).flat(), ...milestones].reduce((max, item) => {
+    const match = /^draft-(?:relation|milestone)-(\d+)$/.exec(String(item?.id ?? ''))
+
+    return match ? Math.max(max, Number(match[1])) : max
+  }, 0)
+
 /** 관계 구역(우호·대립·중립)의 데이터 키 목록이다. */
 const RELATION_TYPES = ['friendly', 'hostile', 'neutral']
 

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { insertMilestoneLatest, moveItem, moveRelationItem, sortMilestonesLatest } from '../utils'
+import { getMaxDraftNumber, insertMilestoneLatest, moveItem, moveRelationItem } from '../utils'
 
 /** 두 값의 내용이 같은지 비교한다. 변경 여부 판단에 쓴다. */
 const isSameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b)
@@ -8,6 +8,7 @@ const isSameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b)
  * 단체 상세 편집 중인 구성원, 관계, 주요 행적을 화면 안에서 초안으로 관리한다.
  * 원본(처음 전달받은 단체 정보)과 비교해 변경 여부를 알려주고, 되돌릴 수도 있다.
  * 단체가 바뀌면 부모가 `key`로 이 hook을 쓰는 컴포넌트를 다시 만들어 초안을 초기화한다.
+ * 전달받은 행적 순서를 그대로 쓴다. 사용자가 바꾼 순서(임시 저장 복원 포함)를 다시 정렬하지 않으므로, 최신 순 정렬은 단체를 불러오는 쪽이 맡는다.
  *
  * @param {{ members?: Array, relations?: object, milestones?: Array }} [group] 편집을 시작할 단체 정보
  * @returns {{
@@ -33,12 +34,13 @@ export const useGroupDetailDraft = (group) => {
   const [initial, setInitial] = useState(() => ({
     members: group?.members ?? [],
     relations: group?.relations ?? {},
-    milestones: sortMilestonesLatest(group?.milestones ?? []),
+    milestones: group?.milestones ?? [],
   }))
   const [members, setMembers] = useState(initial.members)
   const [relations, setRelations] = useState(initial.relations)
   const [milestones, setMilestones] = useState(initial.milestones)
-  const lastDraftNumber = useRef(0)
+  // 임시 저장을 복원한 항목과 식별자가 겹치지 않도록, 이미 있는 임시 번호 다음부터 이어서 매긴다.
+  const lastDraftNumber = useRef(getMaxDraftNumber(initial))
 
   /** 인물 목록에서 고른 인물을 구성원 끝에 추가한다. 이미 구성원인 인물(같은 식별자)이면 추가하지 않는다. */
   const addMember = (person) => {

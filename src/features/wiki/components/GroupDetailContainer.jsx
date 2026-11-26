@@ -7,12 +7,16 @@ import {
   useSubmitGroupDetail,
   useSubmitGroups,
 } from '../hooks/useGroupQueries'
+import { SAVE_DRAFT_ERROR } from '../constants'
 import { DEFAULT_DRAFT_KEY, findDraftGroup, useGroupDraftStore } from '../store'
-import { applyDetailEdit, applyWikiContext, isEmptyDetailEdit, toDetailEdit } from '../utils'
+import {
+  applyDetailEdit,
+  applyWikiContext,
+  isEmptyDetailEdit,
+  sortMilestonesLatest,
+  toDetailEdit,
+} from '../utils'
 import { GroupDetailScreen } from './GroupDetailScreen'
-
-/** 임시 저장에 실패했을 때 보여주는 안내 문구다. */
-const SAVE_DRAFT_ERROR = '임시 저장에 실패했어요. 다시 시도해 주세요.'
 
 /**
  * 단체 한 곳의 상세 정보를 조회해 상세 화면에 전달하고, 편집 내용 제출·임시 저장 요청을 처리한다.
@@ -67,10 +71,15 @@ export const GroupDetailContainer = ({
   const [saveError, setSaveError] = useState('')
   const isNotFound = query.error?.response?.status === 404
   const serverGroup = query.data?.group
-  let group = serverGroup
+  // 행적은 처음에 최신 순으로 보여준다. 임시 저장을 복원할 때는 이 정렬을 기준으로 저장된 순서를 적용해, 사용자가 바꾼 순서가 유지된다.
+  const sortedServerGroup = serverGroup && {
+    ...serverGroup,
+    milestones: sortMilestonesLatest(serverGroup.milestones ?? []),
+  }
+  let group = sortedServerGroup
   if (isDraft) group = { members: [], relations: {}, milestones: [], ...draftGroup }
-  else if (serverGroup && savedDetail) {
-    group = { ...serverGroup, ...applyDetailEdit(serverGroup, savedDetail) }
+  else if (sortedServerGroup && savedDetail) {
+    group = { ...sortedServerGroup, ...applyDetailEdit(sortedServerGroup, savedDetail) }
   }
 
   let status = 'ready'

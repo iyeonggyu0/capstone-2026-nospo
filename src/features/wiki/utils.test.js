@@ -6,6 +6,7 @@ import {
   composeGroups,
   findPersonByName,
   formatSubmittedLabel,
+  getMaxDraftNumber,
   getMemberCandidates,
   getPositionValue,
   getReflectedLabel,
@@ -571,5 +572,53 @@ describe('filterUnlocked', () => {
     filterUnlocked(items, 1)
 
     expect(items).toHaveLength(3)
+  })
+})
+
+describe('getMaxDraftNumber', () => {
+  it('임시 관계와 행적 식별자의 가장 큰 번호를 돌려준다', () => {
+    expect(
+      getMaxDraftNumber({
+        relations: { friendly: [{ id: 'draft-relation-2' }], hostile: [{ id: 'g3' }] },
+        milestones: [{ id: 'draft-milestone-5' }, { id: 'm1' }, { id: 'draft-milestone-1' }],
+      }),
+    ).toBe(5)
+  })
+
+  it('임시 항목이 없거나 값이 비어 있으면 0이다', () => {
+    expect(getMaxDraftNumber({ relations: {}, milestones: [{ id: 'm1' }] })).toBe(0)
+    expect(getMaxDraftNumber({})).toBe(0)
+    expect(getMaxDraftNumber()).toBe(0)
+  })
+
+  it('번호 형식이 아닌 식별자는 무시한다', () => {
+    expect(
+      getMaxDraftNumber({ milestones: [{ id: 'draft-milestone-x' }, { id: 'draft-9' }] }),
+    ).toBe(0)
+  })
+})
+
+describe('applyDetailEdit (임시 저장한 행적 순서)', () => {
+  it('최신 순으로 정렬한 기준 위에 저장된 순서를 적용하면 사용자가 바꾼 순서가 유지된다', () => {
+    const base = {
+      members: [],
+      relations: {},
+      milestones: sortMilestonesLatest([
+        { id: 'm1', unlockEpisode: 4 },
+        { id: 'm2', unlockEpisode: 7 },
+        { id: 'm3', unlockEpisode: 12 },
+      ]),
+    }
+    // 정렬된 기준은 m3(12화), m2(7화), m1(4화) 순이다. 사용자가 이를 m2, m1, m3 순으로 바꿔 임시 저장했다고 본다.
+    const byId = Object.fromEntries(base.milestones.map((item) => [item.id, item]))
+    const custom = [byId.m2, byId.m1, byId.m3]
+    const edit = toDetailEdit(base, { members: [], relations: {}, milestones: custom })
+
+    expect(base.milestones.map((item) => item.id)).toEqual(['m3', 'm2', 'm1'])
+    expect(applyDetailEdit(base, edit).milestones.map((item) => item.id)).toEqual([
+      'm2',
+      'm1',
+      'm3',
+    ])
   })
 })

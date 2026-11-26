@@ -55,12 +55,12 @@ describe('GroupViewListScreen', () => {
     expect(html).toContain('신규 단체 추가')
   })
 
-  it('편집 컨트롤이 없다: 삭제, 검수 제출, 저장 안함, 임시 저장, 뒤로 가기', () => {
+  it('편집 컨트롤이 없다: 삭제, 검수 제출, 저장 안 함, 임시 저장, 뒤로 가기', () => {
     const html = render(<GroupViewListScreen book={book} groups={groups} />)
 
     expect(html).not.toContain('삭제')
     expect(html).not.toContain('검수 제출')
-    expect(html).not.toContain('저장 안함')
+    expect(html).not.toContain('저장 안 함')
     expect(html).not.toContain('임시 저장')
     expect(html).not.toContain('뒤로 가기')
   })

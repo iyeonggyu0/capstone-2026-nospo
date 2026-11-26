@@ -87,7 +87,7 @@ const GroupDetailContent = ({
 
   /**
    * 지금 편집한 구성원·관계·주요 행적을 임시 저장하도록 부모에게 넘긴다.
-   * 저장에 성공하면 지금 내용을 새 기준으로 삼아, 이어서 `저장 안함`을 눌러도 방금 저장한 내용은 남는다.
+   * 저장에 성공하면 지금 내용을 새 기준으로 삼고 이전 화면으로 이동한다. 저장에 실패하면 화면에 머물러 다시 시도할 수 있다.
    */
   const handleSaveDraft = () => {
     const saved = onSaveDraft({
@@ -95,7 +95,16 @@ const GroupDetailContent = ({
       relations: draft.relations,
       milestones: draft.milestones,
     })
-    if (saved !== false) draft.markSaved()
+    if (saved === false) return
+
+    draft.markSaved()
+    onBack?.()
+  }
+
+  /** 저장하지 않고 나간다. 이번에 바꾼 내용은 처음(또는 마지막 임시 저장) 상태로 되돌리고 이전 화면으로 이동한다. */
+  const handleDiscard = () => {
+    draft.reset()
+    onBack?.()
   }
 
   /** 편집한 내용을 제출하고, 성공하면 그 내용을 새 기준으로 삼는다. 실패하면 편집 내용을 그대로 둔다. */
@@ -167,7 +176,7 @@ const GroupDetailContent = ({
         <GroupSubmitBar
           errorMessage={submitError}
           isSubmitting={isSubmitting}
-          onDiscard={draft.reset}
+          onDiscard={handleDiscard}
           onSaveDraft={onSaveDraft ? handleSaveDraft : undefined}
           saveDraftError={saveDraftError}
           onSubmit={onSubmit && (draft.hasChanges || canSubmitUnchanged) ? handleSubmit : undefined}
@@ -197,9 +206,9 @@ const GroupDetailContent = ({
  * @param {boolean} [props.canSubmitUnchanged=false] 편집한 내용이 없어도 `검수 제출`을 누를 수 있게 할지 여부. 새로 추가한 단체처럼 단체 자체가 제출 대상일 때 쓴다.
  * @param {boolean} [props.isSubmitting=false] 제출 요청 중인지 여부
  * @param {string} [props.submitError] 제출 실패 안내 문구
- * @param {string} [props.saveDraftError] 임시 저장 실패 안내 문구. 있으면 `임시 저장` 버튼이 다시 시도 문구로 바뀐다.
+ * @param {string} [props.saveDraftError] 임시 저장 실패 안내 문구. 있으면 하단에 안내를 보여주고, 화면에 머물러 `임시 저장 후 돌아가기`로 다시 시도할 수 있다.
  * @param {(draft: { members: Array, relations: object, milestones: Array }) => boolean | void} [props.onSaveDraft] `임시 저장`을 눌렀을 때 편집한 내용과 함께 실행. 없으면 비활성. 저장에 실패했으면 `false`를 돌려준다.
- * @param {() => void} [props.onBack] 헤더의 뒤로가기와 단체 없음 화면의 `돌아가기`를 눌렀을 때 실행. 이동은 부모(페이지)가 처리한다. 없으면 뒤로가기 화살표와 `돌아가기` 버튼을 보여주지 않는다.
+ * @param {() => void} [props.onBack] 헤더의 뒤로가기, 단체 없음 화면의 `돌아가기`, 그리고 `저장 안 함`·`임시 저장 후 돌아가기`를 끝낸 뒤 실행. 이동은 부모(페이지)가 처리한다. 없으면 뒤로가기 화살표와 `돌아가기` 버튼을 보여주지 않고, `저장 안 함`·`임시 저장 후 돌아가기` 뒤에도 화면에 머문다.
  */
 export const GroupDetailScreen = ({
   group,

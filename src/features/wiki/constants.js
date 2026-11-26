@@ -37,3 +37,6 @@ export const TAB_OPTIONS = [
   { value: 'relations', label: '관계' },
   { value: 'milestones', label: '주요 행적' },
 ]
+
+/** 임시 저장에 실패했을 때 보여주는 안내 문구다. 단체 목록과 단체 상세가 함께 쓴다. */
+export const SAVE_DRAFT_ERROR = '임시 저장에 실패했어요. 다시 시도해 주세요.'

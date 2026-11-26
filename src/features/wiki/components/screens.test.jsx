@@ -65,7 +65,8 @@ describe('GroupListScreen', () => {
     expect(html).toContain('그리핀도르 삭제')
     expect(html).toContain('래번클로 삭제')
     expect(html).toContain('검수 제출')
-    expect(html).toContain('저장 안함')
+    expect(html).toContain('저장 안 함')
+    expect(html).toContain('임시 저장 후 돌아가기')
   })
 
   it('편집 모드에서 변경이 없으면 검수 제출 버튼이 비활성이다', () => {
@@ -114,8 +115,8 @@ describe('GroupDetailScreen', () => {
     expect(html).toContain('인물 검색')
     expect(html).toContain('서하준 삭제')
     expect(html).toContain('검수 제출')
-    expect(html).toContain('저장 안함')
-    expect(html).toContain('임시 저장')
+    expect(html).toContain('저장 안 함')
+    expect(html).toContain('임시 저장 후 돌아가기')
   })
 
   it('변경이 없으면 검수 제출 버튼이 비활성이다', () => {
@@ -177,15 +178,14 @@ describe('단체 없음 상태', () => {
 })
 
 describe('GroupSubmitBar 임시 저장 실패', () => {
-  it('평소에는 임시 저장 버튼만 보이고 오류 안내는 없다', () => {
+  it('평소에는 임시 저장 후 돌아가기 버튼만 보이고 오류 안내는 없다', () => {
     const html = renderWithRouter(<GroupSubmitBar onSaveDraft={() => {}} />)
 
-    expect(html).toContain('임시 저장')
-    expect(html).not.toContain('임시 저장 다시 시도')
+    expect(html).toContain('임시 저장 후 돌아가기')
     expect(html).not.toContain('role="alert"')
   })
 
-  it('저장에 실패하면 안내와 함께 다시 시도 버튼으로 바뀐다', () => {
+  it('저장에 실패하면 안내를 보여주고 같은 버튼으로 다시 시도할 수 있다', () => {
     const html = renderWithRouter(
       <GroupSubmitBar
         onSaveDraft={() => {}}
@@ -195,7 +195,7 @@ describe('GroupSubmitBar 임시 저장 실패', () => {
 
     expect(html).toContain('임시 저장에 실패했어요. 다시 시도해 주세요.')
     expect(html).toContain('role="alert"')
-    expect(html).toContain('임시 저장 다시 시도')
+    expect(html).toContain('임시 저장 후 돌아가기')
   })
 })
 
