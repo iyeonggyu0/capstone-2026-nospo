@@ -1,0 +1,100 @@
+import { useDragReorder } from '../hooks/useDragReorder'
+import { findPersonByName, getUnlockLabel } from '../utils'
+import { GroupDragHandle } from './GroupDragHandle'
+import { GroupSearchBar } from './GroupSearchBar'
+
+/**
+ * 단체의 구성원 목록을 보여준다. 구성원이 없으면 빈 상태 문구를 표시한다.
+ * `editable`이면 인물 검색 줄과 `삭제` 버튼이 나타난다. 구성원은 이름을 직접 쓰지 않고, 등록된 인물(`candidates`) 중에서 골라 추가한다.
+ *
+ * @param {object} props 컴포넌트 props
+ * @param {Array<{ id: string, name: string, unlockLabel?: string, unlockEpisode?: number }>} [props.members=[]] 구성원 목록
+ * @param {Array<{ id: string, name: string, unlockEpisode?: number }>} [props.candidates=[]] 구성원으로 추가할 수 있는 인물 목록(이미 구성원인 인물은 제외)
+ * @param {string} [props.episodeUnit='화'] 진도 단위
+ * @param {boolean} [props.editable=false] 편집 컨트롤 표시 여부
+ * @param {(person: { id: string, name: string, unlockEpisode?: number }) => void} [props.onAdd] 인물 검색 줄에서 고른 인물을 `추가`했을 때 실행. 없으면 비활성
+ * @param {(id: string) => void} [props.onRemove] `삭제`를 눌렀을 때 실행
+ * @param {(id: string, toIndex: number) => void} [props.onReorder] 손잡이로 순서를 바꿨을 때 실행. `toIndex`는 그 구성원을 뺀 목록 기준 위치다.
+ */
+export const GroupMemberList = ({
+  members = [],
+  candidates = [],
+  episodeUnit = '화',
+  editable = false,
+  onAdd,
+  onRemove,
+  onReorder,
+}) => {
+  const { getItemProps, getListProps, getHandleProps } = useDragReorder({
+    lists: { members: members.map((member) => member.id) },
+    onMove: (id, _listKey, toIndex) => onReorder?.(id, toIndex),
+  })
+  const { ref: listRef } = getListProps('members')
+
+  /** 입력한 이름과 같은 인물을 후보에서 찾아 구성원으로 추가한다. */
+  const handleAdd = (query) => {
+    const person = findPersonByName(candidates, query)
+    if (person) onAdd(person)
+  }
+
+  return (
+    <section className="flex flex-col gap-1.5 p-3" aria-labelledby="group-members-title">
+      <h3 className="text-title-sm font-medium text-text-primary" id="group-members-title">
+        구성원
+      </h3>
+      {editable && (
+        <GroupSearchBar
+          label="인물 검색"
+          onAdd={onAdd ? handleAdd : undefined}
+          options={candidates.map((person) => person.name)}
+          requireMatch
+        />
+      )}
+      {members.length === 0 ? (
+        <p className="py-8 text-center text-body text-text-secondary">
+          아직 등록된 구성원이 없어요.
+        </p>
+      ) : (
+        <ul ref={listRef}>
+          {members.map((member) => {
+            const unlockLabel = getUnlockLabel(member, episodeUnit)
+            const { className, ...itemProps } = getItemProps(member.id, 'members')
+
+            return (
+              <li
+                className={`flex h-18 items-center gap-3 px-3 ${className}`}
+                key={member.id}
+                {...itemProps}
+              >
+                {editable && (
+                  <GroupDragHandle
+                    disabled={!onReorder}
+                    label={`${member.name} 순서 바꾸기`}
+                    {...getHandleProps(member.id, 'members')}
+                  />
+                )}
+                <span aria-hidden="true" className="size-10 shrink-0 rounded-full bg-teal-strong" />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <p className="truncate text-title-sm font-medium text-text-primary">
+                    {member.name}
+                  </p>
+                  {unlockLabel && <p className="text-caption text-text-secondary">{unlockLabel}</p>}
+                </div>
+                {editable && onRemove && (
+                  <button
+                    aria-label={`${member.name} 삭제`}
+                    className="-mr-1 min-h-11 min-w-9 shrink-0 px-1 text-label font-medium text-red-destructive"
+                    onClick={() => onRemove(member.id)}
+                    type="button"
+                  >
+                    삭제
+                  </button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}

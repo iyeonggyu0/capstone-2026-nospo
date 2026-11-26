@@ -33,6 +33,8 @@ const WikiRelationshipPage = lazy(() => import('@/pages/WikiRelationshipPage'))
 const WikiReviewListPage = lazy(() => import('@/pages/WikiReviewListPage'))
 const WikiReviewProgressPage = lazy(() => import('@/pages/WikiReviewProgressPage'))
 const WikiSearchPage = lazy(() => import('@/pages/WikiSearchPage'))
+const WikiViewGroupDetailPage = lazy(() => import('@/pages/WikiViewGroupDetailPage'))
+const WikiViewGroupPage = lazy(() => import('@/pages/WikiViewGroupPage'))
 
 /** lazy page가 로드되는 동안 빈 상태를 렌더링한다. */
 const renderPage = (Page) => (
@@ -77,6 +79,8 @@ export const router = createBrowserRouter([
             path: ROUTES.WIKI_REGISTER_GROUP_DETAIL,
             element: renderPage(WikiRegisterGroupDetailPage),
           },
+          { path: ROUTES.WIKI_VIEW_GROUP, element: renderPage(WikiViewGroupPage) },
+          { path: ROUTES.WIKI_VIEW_GROUP_DETAIL, element: renderPage(WikiViewGroupDetailPage) },
           { path: ROUTES.WIKI_REVIEW_LIST, element: renderPage(WikiReviewListPage) },
           { path: ROUTES.WIKI_REVIEW_PROGRESS, element: renderPage(WikiReviewProgressPage) },
           { path: ROUTES.MY, element: renderPage(MyPage) },

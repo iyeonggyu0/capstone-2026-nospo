@@ -1,0 +1,361 @@
+import { renderToStaticMarkup } from 'react-dom/server'
+import { StaticRouter } from 'react-router-dom'
+import { describe, expect, it } from 'vitest'
+import { GroupDetailScreen } from './GroupDetailScreen'
+import { GroupHeader } from './GroupHeader'
+import { GroupListScreen } from './GroupListScreen'
+import { GroupMemberList } from './GroupMemberList'
+import { GroupMilestoneList } from './GroupMilestoneList'
+import { GroupRelationList } from './GroupRelationList'
+import { GroupSubmitBar } from './GroupSubmitBar'
+import { GroupSummary } from './GroupSummary'
+
+const group = {
+  id: 'g1',
+  name: '그리핀도르',
+  scale: '중',
+  memberCount: 12,
+  members: [{ id: 'p1', name: '서하준', unlockEpisode: 1 }],
+  relations: {
+    friendly: [{ id: 'g2', name: '래번클로', scale: '중', memberCount: 9 }],
+    hostile: [{ id: 'g4', name: '슬리데린', scale: '대', memberCount: 11 }],
+  },
+  milestones: [
+    { id: 'm1', content: '첫 번째 행적', unlockEpisode: 4 },
+    { id: 'm2', content: '두 번째 행적', unlockEpisode: 12 },
+  ],
+}
+const groups = [
+  { id: 'g1', name: '그리핀도르', memberCount: 12 },
+  { id: 'g2', name: '래번클로', memberCount: 9 },
+]
+const book = { title: '애주가의 절주 일기', progressLabel: '32화까지 읽음', statusLabel: '보호 중' }
+
+/** 라우터가 필요한 화면을 서버 렌더링해서 HTML 글자로 돌려준다. */
+const renderWithRouter = (element) =>
+  renderToStaticMarkup(<StaticRouter location="/">{element}</StaticRouter>)
+
+describe('GroupListScreen', () => {
+  it('도서, 칩, 안내, 단체 카드, 수정하기 링크, 신규 단체 추가를 보여준다', () => {
+    const html = renderWithRouter(<GroupListScreen book={book} groups={groups} personCount={7} />)
+
+    expect(html).toContain('애주가의 절주 일기')
+    expect(html).toContain('위키 내용 편집')
+    expect(html).toContain('인물')
+    expect(html).toContain('검수 승인 시 AI 토큰 최대 10개를 보상으로 드려요.')
+    expect(html).toContain('그리핀도르')
+    expect(html).toContain('href="/wiki/register/group/detail?groupId=g2&amp;mode=edit"')
+    expect(html).toContain('신규 단체 추가')
+  })
+
+  it('보기 모드에서는 Figma 보기 프레임처럼 삭제 버튼과 검수 제출 영역이 없다', () => {
+    const html = renderWithRouter(
+      <GroupListScreen groups={groups} mode="view" onSubmit={() => {}} />,
+    )
+
+    expect(html).toContain('수정하기')
+    expect(html).toContain('신규 단체 추가')
+    expect(html).not.toContain('삭제')
+    expect(html).not.toContain('검수 제출')
+  })
+
+  it('기본(편집)에서는 처음부터 모든 단체 카드에 삭제 버튼과 검수 제출 영역을 보여준다', () => {
+    const html = renderWithRouter(<GroupListScreen groups={groups} onSubmit={() => {}} />)
+
+    expect(html).toContain('그리핀도르 삭제')
+    expect(html).toContain('래번클로 삭제')
+    expect(html).toContain('검수 제출')
+    expect(html).toContain('저장 안함')
+    expect(html).toContain('임시 저장')
+  })
+
+  it('편집 모드에서 변경이 없으면 검수 제출 버튼이 비활성이다', () => {
+    const html = renderWithRouter(
+      <GroupListScreen groups={groups} mode="edit" onSubmit={() => {}} />,
+    )
+
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>검수 제출<\/button>/)
+  })
+
+  it('로딩 중에는 검수 제출 영역을 보여주지 않는다', () => {
+    expect(renderWithRouter(<GroupListScreen mode="edit" status="loading" />)).not.toContain(
+      '검수 제출',
+    )
+  })
+
+  it('로딩, 빈 목록, 오류 상태를 각각 보여준다', () => {
+    expect(renderWithRouter(<GroupListScreen status="loading" />)).toContain(
+      '단체 목록을 불러오는 중이에요.',
+    )
+    expect(renderWithRouter(<GroupListScreen groups={[]} />)).toContain(
+      '아직 등록된 단체가 없어요.',
+    )
+    expect(renderWithRouter(<GroupListScreen status="error" />)).toContain('다시 시도')
+  })
+})
+
+describe('GroupDetailScreen', () => {
+  it('보기 모드에서는 요약과 탭을 보여주고 편집 컨트롤은 숨긴다', () => {
+    const html = renderWithRouter(<GroupDetailScreen group={group} progressLabel="2권 7장 수정" />)
+
+    expect(html).toContain('단체 정보')
+    expect(html).toContain('2권 7장 수정')
+    expect(html).toContain('규모')
+    expect(html).toContain('구성원')
+    expect(html).toContain('서하준')
+    expect(html).toContain('1화')
+    expect(html).not.toContain('검수 제출')
+    expect(html).not.toContain('인물 검색')
+    expect(html).not.toContain('삭제')
+  })
+
+  it('편집 모드에서는 검색 줄, 삭제 버튼, 검수 제출 영역을 보여준다', () => {
+    const html = renderWithRouter(<GroupDetailScreen group={group} mode="edit" />)
+
+    expect(html).toContain('인물 검색')
+    expect(html).toContain('서하준 삭제')
+    expect(html).toContain('검수 제출')
+    expect(html).toContain('저장 안함')
+    expect(html).toContain('임시 저장')
+  })
+
+  it('변경이 없으면 검수 제출 버튼이 비활성이다', () => {
+    const html = renderWithRouter(
+      <GroupDetailScreen group={group} mode="edit" onSubmit={() => {}} />,
+    )
+
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>검수 제출<\/button>/)
+  })
+
+  it('로딩, 단체 없음, 오류 상태를 각각 보여준다', () => {
+    expect(renderWithRouter(<GroupDetailScreen status="loading" />)).toContain(
+      '단체 정보를 불러오는 중이에요.',
+    )
+    expect(renderWithRouter(<GroupDetailScreen />)).toContain('단체를 찾을 수 없어요.')
+    expect(renderWithRouter(<GroupDetailScreen status="error" />)).toContain('다시 시도')
+  })
+})
+
+describe('GroupSummary', () => {
+  it('규모와 인원을 모두 보여준다', () => {
+    const html = renderWithRouter(<GroupSummary memberCount={12} name="그리핀도르" scale="중" />)
+
+    expect(html).toContain('규모')
+    expect(html).toContain('중')
+    expect(html).toContain('12명')
+  })
+
+  it('규모를 아직 모르는 새 단체도 규모 줄을 숨기지 않고 -로 보여준다', () => {
+    const html = renderWithRouter(<GroupSummary memberCount={0} name="신규 단체" />)
+
+    expect(html).toContain('규모')
+    expect(html).toContain('>-<')
+    expect(html).toContain('0명')
+  })
+
+  it('인원을 모르면 인원 줄도 -로 보여준다', () => {
+    const html = renderWithRouter(<GroupSummary name="신규 단체" />)
+
+    expect(html).toContain('인원')
+    expect(html.match(/>-</g)).toHaveLength(2)
+  })
+})
+
+describe('단체 없음 상태', () => {
+  it('돌아갈 방법이 있으면 안내와 함께 돌아가기 버튼을 보여준다', () => {
+    const html = renderWithRouter(<GroupDetailScreen onBack={() => {}} />)
+
+    expect(html).toContain('단체를 찾을 수 없어요.')
+    expect(html).toContain('돌아가기')
+  })
+
+  it('돌아갈 방법이 없으면 돌아가기 버튼은 보여주지 않는다', () => {
+    const html = renderWithRouter(<GroupDetailScreen />)
+
+    expect(html).toContain('단체를 찾을 수 없어요.')
+    expect(html).not.toContain('돌아가기')
+  })
+})
+
+describe('GroupSubmitBar 임시 저장 실패', () => {
+  it('평소에는 임시 저장 후 돌아가기 버튼만 보이고 오류 안내는 없다', () => {
+    const html = renderWithRouter(<GroupSubmitBar onSaveDraft={() => {}} />)
+
+    expect(html).toContain('임시 저장')
+    expect(html).not.toContain('role="alert"')
+  })
+
+  it('저장에 실패하면 안내를 보여주고 같은 버튼으로 다시 시도할 수 있다', () => {
+    const html = renderWithRouter(
+      <GroupSubmitBar
+        onSaveDraft={() => {}}
+        saveDraftError="임시 저장에 실패했어요. 다시 시도해 주세요."
+      />,
+    )
+
+    expect(html).toContain('임시 저장에 실패했어요. 다시 시도해 주세요.')
+    expect(html).toContain('role="alert"')
+    expect(html).toContain('임시 저장')
+  })
+})
+
+describe('GroupHeader', () => {
+  it('뒤로가기 동작이 없으면 로고와 진도 변경만 보여준다', () => {
+    const html = renderWithRouter(<GroupHeader currentEpisode={32} />)
+
+    expect(html).toContain('NOSPO')
+    expect(html).toContain('진도 변경')
+    expect(html).not.toContain('뒤로 가기')
+    expect(html).not.toContain('role="status"')
+  })
+
+  it('뒤로가기 동작이 있으면 접근 가능한 이름이 있는 뒤로가기 버튼을 보여준다', () => {
+    const html = renderWithRouter(<GroupHeader currentEpisode={32} onBack={() => {}} />)
+
+    expect(html).toContain('aria-label="뒤로 가기"')
+  })
+
+  it('현재 진도를 모르면 진도 변경 버튼이 비활성이다', () => {
+    const html = renderWithRouter(<GroupHeader />)
+
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>진도 변경<\/button>/)
+  })
+
+  it('단체 목록에는 뒤로가기 없이, 단체 상세에는 뒤로가기와 함께 헤더가 나온다', () => {
+    const list = renderWithRouter(<GroupListScreen book={book} groups={groups} personCount={7} />)
+    const detail = renderWithRouter(<GroupDetailScreen group={group} onBack={() => {}} />)
+    const notFound = renderWithRouter(<GroupDetailScreen onBack={() => {}} />)
+
+    expect(list).toContain('진도 변경')
+    expect(list).not.toContain('뒤로 가기')
+    expect(detail).toContain('진도 변경')
+    expect(detail).toContain('뒤로 가기')
+    expect(notFound).toContain('뒤로 가기')
+  })
+})
+
+describe('GroupMemberList (인물에서 구성원 고르기)', () => {
+  const candidates = [
+    { id: 'p2', name: '배서현', unlockEpisode: 3 },
+    { id: 'p3', name: '구교승', unlockEpisode: 7 },
+  ]
+
+  it('편집 모드에서는 후보 인물 이름을 자동완성으로 보여주고, 입력 전에는 추가가 비활성이다', () => {
+    const html = renderWithRouter(
+      <GroupMemberList candidates={candidates} editable members={[]} onAdd={() => {}} />,
+    )
+
+    expect(html).toContain('<datalist')
+    expect(html).toContain('value="배서현"')
+    expect(html).toContain('value="구교승"')
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>추가/)
+  })
+
+  it('보기 모드에서는 검색 줄과 자동완성이 없다', () => {
+    const html = renderWithRouter(<GroupMemberList candidates={candidates} members={[]} />)
+
+    expect(html).not.toContain('<datalist')
+    expect(html).not.toContain('인물 검색')
+  })
+})
+
+describe('GroupRelationList', () => {
+  it('값이 있는 관계 구간만 제목과 함께 보여준다', () => {
+    const html = renderWithRouter(<GroupRelationList relations={group.relations} />)
+
+    expect(html).toContain('우호')
+    expect(html).toContain('대립')
+    expect(html).not.toContain('중립')
+    expect(html).toContain('래번클로')
+  })
+
+  it('관계가 없으면 구역 제목 없이 빈 상태 문구만 보여준다', () => {
+    const html = renderWithRouter(<GroupRelationList />)
+
+    expect(html).toContain('아직 등록된 관계가 없어요.')
+    expect(html).not.toContain('우호')
+    expect(html).not.toContain('대립')
+    expect(html).not.toContain('중립')
+  })
+})
+
+describe('편집 상태 레이아웃(Figma 기준)', () => {
+  it('관계 탭은 편집일 때만 관계 제목과 단체 검색 줄, 항목 삭제 버튼을 보여준다', () => {
+    const editHtml = renderWithRouter(
+      <GroupRelationList editable onRemove={() => {}} relations={group.relations} />,
+    )
+    const viewHtml = renderWithRouter(<GroupRelationList relations={group.relations} />)
+
+    expect(editHtml).toContain('id="group-relation-title"')
+    expect(editHtml).toContain('단체 검색')
+    expect(editHtml).toContain('래번클로 삭제')
+    expect(viewHtml).not.toContain('group-relation-title')
+    expect(viewHtml).not.toContain('단체 검색')
+    expect(viewHtml).not.toContain('삭제')
+  })
+
+  it('행적이 없어도 편집 모드에서는 빈 목록 대신 안내와 추가 버튼만 보여준다', () => {
+    const html = renderWithRouter(<GroupMilestoneList editable />)
+
+    expect(html).toContain('아직 등록된 행적이 없어요.')
+    expect(html).not.toContain('<ul')
+    expect(html).toContain('추가')
+  })
+
+  it('하단 영역이 항상 아래에 붙도록 화면 본문에 최소 높이를 준다', () => {
+    const detailHtml = renderWithRouter(<GroupDetailScreen group={group} mode="edit" />)
+
+    expect(detailHtml).toContain('min-h-[calc(100%-4.75rem)]')
+    expect(renderWithRouter(<GroupListScreen groups={groups} />)).toContain(
+      'min-h-[calc(100%-4.75rem)]',
+    )
+  })
+})
+
+describe('GroupMilestoneList', () => {
+  it('전달받은 순서대로 행적을 보여준다(정렬은 부모가 맡는다)', () => {
+    const html = renderWithRouter(<GroupMilestoneList milestones={group.milestones} />)
+
+    expect(html.indexOf('첫 번째 행적')).toBeLessThan(html.indexOf('두 번째 행적'))
+    expect(html).toContain('12화')
+    expect(html).toContain('최신 순')
+  })
+
+  it('편집 모드에서는 구성원·관계에 순서 손잡이 버튼을 보여준다', () => {
+    const member = renderWithRouter(
+      <GroupDetailScreen group={{ ...group, members: group.members }} mode="edit" />,
+    )
+    const relation = renderWithRouter(
+      <GroupRelationList editable onMove={() => {}} relations={group.relations} />,
+    )
+    const milestone = renderWithRouter(
+      <GroupMilestoneList editable milestones={group.milestones} />,
+    )
+
+    expect(member).toContain('서하준 순서 바꾸기')
+    expect(relation).toContain('래번클로 순서 바꾸기')
+    expect(milestone).not.toContain('순서 바꾸기')
+  })
+
+  it('편집 모드의 관계는 비어 있는 구역도 보여줘 다른 구역으로 옮길 수 있게 한다', () => {
+    const html = renderWithRouter(
+      <GroupRelationList editable onMove={() => {}} relations={group.relations} />,
+    )
+
+    expect(html).toContain('중립')
+  })
+
+  it('편집 모드에서는 편집·삭제 버튼과 추가 버튼을 보여준다', () => {
+    const html = renderWithRouter(
+      <GroupMilestoneList editable milestones={group.milestones} onRemove={() => {}} />,
+    )
+
+    expect(html).toContain('첫 번째 행적 편집')
+    expect(html).toContain('첫 번째 행적 삭제')
+    expect(html).toContain('추가')
+  })
+
+  it('행적이 없으면 빈 상태 문구를 보여준다', () => {
+    expect(renderWithRouter(<GroupMilestoneList />)).toContain('아직 등록된 행적이 없어요.')
+  })
+})
