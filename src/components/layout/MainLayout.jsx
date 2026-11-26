@@ -65,13 +65,18 @@ export const MainLayout = () => {
     pathname.startsWith(ROUTES.WIKI_REVIEW_LIST) ||
     pathname === ROUTES.MY_PROFILE ||
     (pathname === ROUTES.MY && new URLSearchParams(search).get('view') === 'transactions')
+  // 단체 편집·보기 화면은 진도 변경이 필요해서 기본 헤더 대신 화면이 직접 헤더를 그린다.
+  const hasOwnHeader =
+    pathname.startsWith(ROUTES.WIKI_REGISTER_GROUP) || pathname.startsWith(ROUTES.WIKI_VIEW_GROUP)
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <main
         className={`min-h-0 flex-1 overflow-y-auto ${pathname.startsWith('/wiki/search/') ? 'bg-canvas' : 'bg-surface'}`}
       >
-        {!usePageHeader && <Header {...getHeaderProps(pathname, search, navigate)} />}
+        {!usePageHeader && !hasOwnHeader && (
+          <Header {...getHeaderProps(pathname, search, navigate)} />
+        )}
         <Outlet />
       </main>
       <BottomNavigation />
