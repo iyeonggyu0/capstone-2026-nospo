@@ -40,3 +40,5 @@ export {
   uploadWikiDraftAsset,
   submitWikiDraft,
 } from './api/wikiDrafts'
+export { WikiEmptyStateDialog } from './components/WikiEmptyStateDialog'
+export { WikiCharacterImagePicker } from './components/WikiCharacterImagePicker'
