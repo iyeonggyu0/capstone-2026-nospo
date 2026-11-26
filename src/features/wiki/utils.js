@@ -577,3 +577,24 @@ export const withHiddenItems = (detail, { hiddenMembers = [], hiddenMilestones =
   members: [...detail.members, ...hiddenMembers],
   milestones: [...sortMilestonesLatest(hiddenMilestones), ...detail.milestones],
 })
+
+/**
+ * 편집 중인 단체 상세에서 현재 진도에 맞게 보이는 구성원·행적과 가려진 구성원·행적을 나눈다.
+ * 임시 저장을 복원하거나 새 단체 초안을 열 때, 높은 진도에서 추가해 둔 항목이 낮은 진도에서 다시 보이지 않게 거르는 데 쓴다.
+ * 가려진 항목은 따로 돌려줘서, 임시 저장과 제출 때 `withHiddenItems`로 다시 붙여 편집 내용이 사라지지 않게 한다.
+ *
+ * @param {{ members?: Array, milestones?: Array } | undefined} detail 편집 중인 단체 상세
+ * @param {number} [maxEpisode] 현재 진도(읽은 회차). 없으면 거르지 않는다.
+ * @returns {{ members: Array, milestones: Array, hiddenMembers: Array, hiddenMilestones: Array }} 보이는 항목과 가려진 항목
+ */
+export const filterDetailByProgress = (detail, maxEpisode) => {
+  const members = filterUnlocked(detail?.members, maxEpisode)
+  const milestones = filterUnlocked(detail?.milestones, maxEpisode)
+
+  return {
+    members,
+    milestones,
+    hiddenMembers: (detail?.members ?? []).filter((item) => !members.includes(item)),
+    hiddenMilestones: (detail?.milestones ?? []).filter((item) => !milestones.includes(item)),
+  }
+}

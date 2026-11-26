@@ -379,6 +379,51 @@ describe('GroupDetailContainer (임시 저장·구성원 선택)', () => {
     expect(html).not.toContain('아직 모르는 인물')
   })
 
+  it('높은 진도에서 추가해 임시 저장한 구성원은 낮은 진도로 열면 보이지 않는다', async () => {
+    useGroupDraftStore.getState().saveDetailDraft(
+      'g1',
+      toDetailEdit(fixtureGroup, {
+        members: [
+          ...fixtureGroup.members,
+          { id: 'p9', name: '높은 진도에서 추가한 인물', unlockEpisode: 40 },
+        ],
+        relations: {},
+        milestones: [],
+      }),
+    )
+
+    const html = await renderContainer(
+      <GroupDetailContainer groupId="g1" mode="edit" />,
+      seedDetail('g1'),
+    )
+
+    expect(html).toContain('서하준')
+    expect(html).not.toContain('높은 진도에서 추가한 인물')
+  })
+
+  it('새 단체의 초안에 높은 진도에서 추가한 구성원도 낮은 진도로 열면 보이지 않고 인원에서도 뺀다', async () => {
+    const store = useGroupDraftStore.getState()
+    store.addGroup('default', { name: '신규 단체', unlockEpisode: 3 })
+    store.saveDraftGroupDetail('draft-1', {
+      members: [
+        { id: 'p1', name: '서하준', unlockEpisode: 1 },
+        { id: 'p9', name: '높은 진도에서 추가한 인물', unlockEpisode: 40 },
+      ],
+      relations: {},
+      milestones: [],
+    })
+
+    const html = await renderContainer(
+      <GroupDetailContainer groupId="draft-1" mode="edit" />,
+      seedList,
+    )
+
+    expect(html).toContain('서하준')
+    expect(html).not.toContain('높은 진도에서 추가한 인물')
+    expect(html).toContain('1명')
+    expect(html).not.toContain('2명')
+  })
+
   it('수정 화면도 현재 진도 이후 구성원은 이름과 인원에서 모두 숨긴다', async () => {
     const html = await renderContainer(
       <GroupDetailContainer groupId="g1" mode="edit" />,

@@ -12,6 +12,7 @@ import { DEFAULT_DRAFT_KEY, findDraftGroup, useGroupDraftStore } from '../store'
 import {
   applyDetailEdit,
   applyWikiContext,
+  filterDetailByProgress,
   isEmptyDetailEdit,
   splitByProgress,
   toDetailEdit,
@@ -87,10 +88,22 @@ export const GroupDetailContainer = ({
     hiddenMembers,
     hiddenMilestones,
   } = isFrozenForGroup ? frozen.split : fresh
-  let group = serverGroup
-  if (isDraft) group = { members: [], relations: {}, milestones: [], ...draftGroup }
+  let working = serverGroup
+  if (isDraft) working = { members: [], relations: {}, milestones: [], ...draftGroup }
   else if (serverGroup && savedDetail) {
-    group = { ...serverGroup, ...applyDetailEdit(serverGroup, savedDetail) }
+    working = { ...serverGroup, ...applyDetailEdit(serverGroup, savedDetail) }
+  }
+  // 임시 저장본이나 새 단체 초안에 높은 진도에서 추가해 둔 항목이 있어도 현재 진도로 다시 거른다.
+  // 가린 편집 내용은 임시 저장과 제출 때 다시 붙여 보존한다.
+  const edited = filterDetailByProgress(working, book?.currentEpisode)
+  const group = working && {
+    ...working,
+    members: edited.members,
+    milestones: edited.milestones,
+    memberCount:
+      isDraft && working.memberCount != null
+        ? Math.max(0, working.memberCount - edited.hiddenMembers.length)
+        : working.memberCount,
   }
 
   let status = 'ready'
@@ -102,7 +115,7 @@ export const GroupDetailContainer = ({
 
   /** 새로 추가한 단체의 상세를 초안에 저장하고, 그 판본의 추가·삭제 초안을 함께 제출한다. 성공하면 이동 신호를 보낸 뒤 초안을 비운다. */
   const submitDraftGroup = async (detail) => {
-    saveDraftGroupDetail(groupId, detail)
+    saveDraftGroupDetail(groupId, withHiddenItems(detail, edited))
     const { addedGroups, removedGroupIds } = useGroupDraftStore.getState().drafts[draftKey]
     const result = await submitDrafts.mutateAsync({
       editionId: editionId ?? null,
@@ -117,7 +130,10 @@ export const GroupDetailContainer = ({
   const submitServerGroup = async (detail) => {
     const result = await submit.mutateAsync({
       groupId,
-      ...withHiddenItems(detail, { hiddenMembers, hiddenMilestones }),
+      ...withHiddenItems(detail, {
+        hiddenMembers: [...hiddenMembers, ...edited.hiddenMembers],
+        hiddenMilestones: [...hiddenMilestones, ...edited.hiddenMilestones],
+      }),
     })
     clearDetailDraft(groupId)
     onSubmitted?.(result)
@@ -131,11 +147,12 @@ export const GroupDetailContainer = ({
    */
   const saveDraft = (detail) => {
     try {
+      const fullDetail = withHiddenItems(detail, edited)
       if (isDraft) {
-        saveDraftGroupDetail(groupId, detail)
+        saveDraftGroupDetail(groupId, fullDetail)
         saveDraftSnapshot(draftKey)
       } else {
-        const edit = toDetailEdit(serverGroup, detail)
+        const edit = toDetailEdit(serverGroup, fullDetail)
         if (isEmptyDetailEdit(edit, serverGroup)) clearDetailDraft(groupId)
         else saveDetailDraft(groupId, edit)
       }

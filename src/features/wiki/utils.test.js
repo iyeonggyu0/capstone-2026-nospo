@@ -6,6 +6,7 @@ import {
   composeGroups,
   findPersonByName,
   formatSubmittedLabel,
+  filterDetailByProgress,
   getMaxDraftNumber,
   splitByProgress,
   withHiddenItems,
@@ -721,5 +722,48 @@ describe('splitByProgress / withHiddenItems (수정 화면의 진도 보호)', (
 
     expect(result.members.map((item) => item.id)).toEqual(['p1', 'p2'])
     expect(result.milestones.map((item) => item.id)).toEqual(['m2', 'm3', 'm1'])
+  })
+})
+
+describe('filterDetailByProgress (임시 저장본·초안 복원)', () => {
+  const detail = {
+    members: [
+      { id: 'p1', unlockEpisode: 1 },
+      { id: 'p9', unlockEpisode: 40 },
+    ],
+    milestones: [
+      { id: 'm1', unlockEpisode: 4 },
+      { id: 'm9', unlockEpisode: 50 },
+    ],
+  }
+
+  it('낮은 진도로 열면 높은 진도에서 추가한 구성원·행적을 가리고 따로 돌려준다', () => {
+    const result = filterDetailByProgress(detail, 10)
+
+    expect(result.members.map((item) => item.id)).toEqual(['p1'])
+    expect(result.milestones.map((item) => item.id)).toEqual(['m1'])
+    expect(result.hiddenMembers.map((item) => item.id)).toEqual(['p9'])
+    expect(result.hiddenMilestones.map((item) => item.id)).toEqual(['m9'])
+  })
+
+  it('진도가 충분하면 아무것도 가리지 않고, 값이 없으면 빈 목록이다', () => {
+    expect(filterDetailByProgress(detail, 99).hiddenMembers).toEqual([])
+    expect(filterDetailByProgress(undefined, 10)).toEqual({
+      members: [],
+      milestones: [],
+      hiddenMembers: [],
+      hiddenMilestones: [],
+    })
+  })
+
+  it('가린 항목을 withHiddenItems로 다시 붙이면 편집 내용이 그대로 보존된다', () => {
+    const edited = filterDetailByProgress(detail, 10)
+    const restored = withHiddenItems(
+      { members: edited.members, relations: {}, milestones: edited.milestones },
+      edited,
+    )
+
+    expect(restored.members.map((item) => item.id).sort()).toEqual(['p1', 'p9'])
+    expect(restored.milestones.map((item) => item.id).sort()).toEqual(['m1', 'm9'])
   })
 })
