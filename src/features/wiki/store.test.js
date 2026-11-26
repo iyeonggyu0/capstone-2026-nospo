@@ -183,3 +183,28 @@ describe('단체 초안 스토어 (새로고침 유지)', () => {
     expect(reloaded.useGroupDraftStore.getState().lastDraftNumber).toBe(1)
   })
 })
+
+describe('목록 제출 후 상세 임시 저장 정리', () => {
+  const detailEdit = { members: { order: [] }, relations: {}, milestones: { order: [] } }
+
+  it('삭제를 제출한 서버 단체의 상세 임시 저장만 함께 지운다', () => {
+    const state = useGroupDraftStore.getState()
+    state.saveDetailDraft('g1', detailEdit)
+    state.saveDetailDraft('g2', detailEdit)
+    state.removeGroup('e1', 'g1', true)
+
+    useGroupDraftStore.getState().resetDraft('e1')
+
+    expect(Object.keys(useGroupDraftStore.getState().detailDrafts)).toEqual(['g2'])
+  })
+
+  it('삭제하지 않은 단체의 상세 임시 저장은 목록을 제출해도 남는다', () => {
+    const state = useGroupDraftStore.getState()
+    state.saveDetailDraft('g2', detailEdit)
+    state.addGroup('e1', { name: '신규', unlockEpisode: 1 })
+
+    useGroupDraftStore.getState().resetDraft('e1')
+
+    expect(Object.keys(useGroupDraftStore.getState().detailDrafts)).toEqual(['g2'])
+  })
+})

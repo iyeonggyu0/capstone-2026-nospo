@@ -36,7 +36,7 @@ export const GroupCard = ({ id, name, memberCount, imageUrl, onDelete, linkState
       <div className="flex flex-col gap-0.5">
         <h2 className="text-body font-medium text-text-primary">{name}</h2>
         <div className="flex items-center justify-between text-caption-sm leading-4.5 text-text-muted">
-          <span>{memberCount}명</span>
+          <span>{memberCount != null ? `${memberCount}명` : '-'}</span>
           <div className="flex items-center gap-1">
             {onDelete && (
               <button

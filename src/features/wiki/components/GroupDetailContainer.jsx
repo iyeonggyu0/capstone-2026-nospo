@@ -13,8 +13,9 @@ import {
   applyDetailEdit,
   applyWikiContext,
   isEmptyDetailEdit,
-  sortMilestonesLatest,
+  splitByProgress,
   toDetailEdit,
+  withHiddenItems,
 } from '../utils'
 import { GroupDetailScreen } from './GroupDetailScreen'
 
@@ -54,7 +55,10 @@ export const GroupDetailContainer = ({
   const resetDraft = useGroupDraftStore((state) => state.resetDraft)
   const saveDraftSnapshot = useGroupDraftStore((state) => state.saveDraftSnapshot)
   const isDraft = Boolean(draftGroup)
-  const query = useGroupDetail(isDraft ? null : groupId)
+  // 새로 추가한 단체의 식별자(`draft-N`)는 서버에 없다. 제출 직후 초안이 비워지는 순간에 서버로 잘못 조회하지 않도록 막는다.
+  const isDraftId = typeof groupId === 'string' && groupId.startsWith('draft-')
+  const shouldFetch = !isDraft && !isDraftId
+  const query = useGroupDetail(shouldFetch ? groupId : null)
   // 새로 추가한 단체는 만들 때 정해진 도서(초안 키)가 기준이고, 서버 단체는 이동 때 넘어온 도서를 쓴다.
   const draftEditionId = draftKey === DEFAULT_DRAFT_KEY ? undefined : draftKey
   const editionId = draftKey != null ? draftEditionId : (contextEditionId ?? undefined)
@@ -70,20 +74,30 @@ export const GroupDetailContainer = ({
   const personQuery = usePersonList(editionId, book?.currentEpisode)
   const [saveError, setSaveError] = useState('')
   const isNotFound = query.error?.response?.status === 404
-  const serverGroup = query.data?.group
-  // 행적은 처음에 최신 순으로 보여준다. 임시 저장을 복원할 때는 이 정렬을 기준으로 저장된 순서를 적용해, 사용자가 바꾼 순서가 유지된다.
-  const sortedServerGroup = serverGroup && {
-    ...serverGroup,
-    milestones: sortMilestonesLatest(serverGroup.milestones ?? []),
-  }
-  let group = sortedServerGroup
+  // 현재 진도 이후의 구성원·행적·인원은 화면에 보여주지 않는다. 가린 항목은 제출할 때 다시 붙여 지워지지 않게 한다.
+  // 행적은 처음에 최신 순으로 보여주며, 임시 저장을 복원할 때는 이 정렬을 기준으로 저장된 순서를 적용해 사용자가 바꾼 순서가 유지된다.
+  // 편집을 시작한 시점의 서버 단체를 기준으로 고정한다. 편집 중에 서버 데이터가 새로 와도 초안은 처음 기준으로 만들어져 있으므로,
+  // 같은 기준으로 달라진 부분을 비교하고 제출해야 그 사이 서버에 생긴 항목이 지워지지 않는다.
+  const fresh = splitByProgress(query.data?.group, book?.currentEpisode)
+  const [frozen, setFrozen] = useState(null)
+  const isFrozenForGroup = frozen !== null && frozen.groupId === groupId
+  if (fresh.visible && !isFrozenForGroup) setFrozen({ groupId, split: fresh })
+  const {
+    visible: serverGroup,
+    hiddenMembers,
+    hiddenMilestones,
+  } = isFrozenForGroup ? frozen.split : fresh
+  let group = serverGroup
   if (isDraft) group = { members: [], relations: {}, milestones: [], ...draftGroup }
-  else if (sortedServerGroup && savedDetail) {
-    group = { ...sortedServerGroup, ...applyDetailEdit(sortedServerGroup, savedDetail) }
+  else if (serverGroup && savedDetail) {
+    group = { ...serverGroup, ...applyDetailEdit(serverGroup, savedDetail) }
   }
 
   let status = 'ready'
-  if (!isDraft && groupId && query.isPending) status = 'loading'
+  // 새로 추가한 단체는 목록 조회로 현재 진도를 알아야 한다. 진도를 모르는 채로 보여주면 진도 이후 회차 제한이 적용되지 않는다.
+  if (isDraft && listQuery.isPending) status = 'loading'
+  else if (isDraft && listQuery.isError) status = 'error'
+  else if (shouldFetch && groupId && query.isPending) status = 'loading'
   else if (query.isError && !isNotFound) status = 'error'
 
   /** 새로 추가한 단체의 상세를 초안에 저장하고, 그 판본의 추가·삭제 초안을 함께 제출한다. 성공하면 이동 신호를 보낸 뒤 초안을 비운다. */
@@ -101,7 +115,10 @@ export const GroupDetailContainer = ({
 
   /** 서버에 있는 단체의 편집 내용을 제출하고, 성공하면 임시 저장을 지우고 이동 신호를 보낸다. */
   const submitServerGroup = async (detail) => {
-    const result = await submit.mutateAsync({ groupId, ...detail })
+    const result = await submit.mutateAsync({
+      groupId,
+      ...withHiddenItems(detail, { hiddenMembers, hiddenMilestones }),
+    })
     clearDetailDraft(groupId)
     onSubmitted?.(result)
   }
@@ -141,7 +158,7 @@ export const GroupDetailContainer = ({
       memberCandidates={personQuery.data?.items}
       mode={mode === 'view' ? 'view' : 'edit'}
       onBack={onBack}
-      onRetry={() => query.refetch()}
+      onRetry={() => (isDraft ? listQuery.refetch() : query.refetch())}
       onSaveDraft={saveDraft}
       onSubmit={isDraft ? submitDraftGroup : submitServerGroup}
       saveDraftError={saveError || undefined}

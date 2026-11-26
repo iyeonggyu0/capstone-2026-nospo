@@ -31,6 +31,9 @@ export const GroupListContainer = ({
   const query = useGroupList(editionId)
   const submit = useSubmitGroups()
   const book = applyWikiContext(query.data?.book, { position, wikiMode })
+  // 서버가 주는 인원수는 현재 진도 이후의 구성원까지 센 값이라, 존재가 드러나지 않도록 서버 단체의 인원수는 숨긴다.
+  // 새로 추가한 단체의 인원(0명)은 화면에서 직접 만든 값이라 그대로 보여준다.
+  const items = query.data?.items?.map((group) => ({ ...group, memberCount: undefined }))
   let status = 'ready'
   if (query.isPending) status = 'loading'
   else if (query.isError) status = 'error'
@@ -41,7 +44,7 @@ export const GroupListContainer = ({
       detailState={detailState}
       editionId={editionId}
       episodeUnit={book?.episodeUnit}
-      groups={query.data?.items}
+      groups={items}
       isSubmitting={submit.isPending}
       mode={mode === 'view' ? 'view' : 'edit'}
       onCategoryChange={onCategoryChange}

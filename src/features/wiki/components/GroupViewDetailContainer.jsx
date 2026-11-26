@@ -1,12 +1,13 @@
 import { useGroupDetail } from '../hooks/useGroupQueries'
 import { isPreviewGroupId, PREVIEW_BOOK, PREVIEW_GROUP_DETAILS } from '../previewGroups'
-import { applyWikiContext, filterUnlocked, sortMilestonesLatest } from '../utils'
+import { applyWikiContext, splitByProgress } from '../utils'
 import { GroupViewDetailScreen } from './GroupViewDetailScreen'
 
 /**
  * 위키 내용(보기)의 단체 한 곳을 조회해 읽기 전용 상세 화면에 전달한다.
  * 서버에 올라간 단체만 보여주므로, 목록에서 새로 추가해 임시로만 있는 단체는 "찾을 수 없음"으로 나온다.
  * 현재 진도보다 뒤에 등장하는 구성원과 행적은 내용도 개수도 보이지 않게 거르고(가린 구성원 수만큼 인원에서도 뺀다), 행적은 최신 순으로 정렬한다.
+ * 관계에 나오는 단체의 인원수는 진도 이후 구성원이 섞여 있으므로 숨긴다.
  * 식별자가 없거나 서버에 없는 단체(404)는 "찾을 수 없음"으로 표시하고, 그 외 실패는 오류 상태로 표시한다.
  *
  * @param {object} props 컴포넌트 props
@@ -27,17 +28,7 @@ export const GroupViewDetailContainer = ({ groupId, position, wikiMode, onBack }
   const maxEpisode = book?.currentEpisode
   const isNotFound = query.error?.response?.status === 404
   const serverGroup = isPreviewId ? previewGroup : query.data?.group
-  const members = filterUnlocked(serverGroup?.members, maxEpisode)
-  const hiddenMemberCount = (serverGroup?.members?.length ?? 0) - members.length
-  const group = serverGroup && {
-    ...serverGroup,
-    members,
-    memberCount:
-      serverGroup.memberCount != null
-        ? Math.max(0, serverGroup.memberCount - hiddenMemberCount)
-        : undefined,
-    milestones: sortMilestonesLatest(filterUnlocked(serverGroup.milestones, maxEpisode)),
-  }
+  const { visible: group } = splitByProgress(serverGroup, maxEpisode)
 
   let status = 'ready'
   if (groupId && !isPreviewId && query.isPending) status = 'loading'

@@ -130,12 +130,22 @@ export const useGroupDraftStore = create(
           drafts: { ...state.drafts, [key]: state.savedDrafts[key] ?? EMPTY_GROUP_DRAFT },
         })),
 
-      /** 해당 판본의 추가·삭제 내용과 임시 저장 상태를 모두 버린다. 검수 제출에 성공했을 때 쓴다. */
+      /**
+       * 해당 판본의 추가·삭제 내용과 임시 저장 상태를 모두 버린다. 검수 제출에 성공했을 때 쓴다.
+       * 삭제를 제출한 서버 단체의 상세 임시 저장도 함께 지워, 나중에 같은 식별자로 열어도 옛 편집이 되살아나지 않게 한다.
+       */
       resetDraft: (key) =>
-        set((state) => ({
-          drafts: { ...state.drafts, [key]: EMPTY_GROUP_DRAFT },
-          savedDrafts: { ...state.savedDrafts, [key]: EMPTY_GROUP_DRAFT },
-        })),
+        set((state) => {
+          const removed = new Set((state.drafts[key] ?? EMPTY_GROUP_DRAFT).removedGroupIds)
+
+          return {
+            drafts: { ...state.drafts, [key]: EMPTY_GROUP_DRAFT },
+            savedDrafts: { ...state.savedDrafts, [key]: EMPTY_GROUP_DRAFT },
+            detailDrafts: Object.fromEntries(
+              Object.entries(state.detailDrafts).filter(([id]) => !removed.has(id)),
+            ),
+          }
+        }),
     }),
     {
       name: DRAFT_STORAGE_NAME,

@@ -7,6 +7,9 @@ import {
   findPersonByName,
   formatSubmittedLabel,
   getMaxDraftNumber,
+  splitByProgress,
+  withHiddenItems,
+  hideRelatedMemberCounts,
   getMemberCandidates,
   getPositionValue,
   getReflectedLabel,
@@ -620,5 +623,103 @@ describe('applyDetailEdit (임시 저장한 행적 순서)', () => {
       'm1',
       'm3',
     ])
+  })
+})
+
+describe('hideRelatedMemberCounts', () => {
+  it('관계에 나오는 단체의 인원수만 지우고 나머지는 그대로 둔다', () => {
+    const relations = {
+      friendly: [{ id: 'g2', name: '래번클로', scale: '중', memberCount: 12 }],
+      hostile: [{ id: 'g3', name: '슬리데린', memberCount: 4 }],
+    }
+    const result = hideRelatedMemberCounts(relations)
+
+    expect(result.friendly[0]).toEqual({
+      id: 'g2',
+      name: '래번클로',
+      scale: '중',
+      memberCount: undefined,
+    })
+    expect(result.hostile[0].memberCount).toBeUndefined()
+    expect(relations.friendly[0].memberCount).toBe(12)
+  })
+
+  it('관계가 없으면 빈 객체를 돌려준다', () => {
+    expect(hideRelatedMemberCounts()).toEqual({})
+    expect(hideRelatedMemberCounts({})).toEqual({})
+  })
+})
+
+describe('isEmptyDetailEdit (관계 구분 순서)', () => {
+  it('서버가 관계 구분을 대립, 우호 순으로 보내도 손대지 않은 상태로 본다', () => {
+    const base = {
+      members: [],
+      relations: {
+        hostile: [{ id: 'g3', name: '슬리데린' }],
+        friendly: [{ id: 'g2', name: '래번클로' }],
+      },
+      milestones: [],
+    }
+    const edit = toDetailEdit(base, {
+      members: [],
+      relations: base.relations,
+      milestones: [],
+    })
+
+    expect(isEmptyDetailEdit(edit, base)).toBe(true)
+  })
+})
+
+describe('splitByProgress / withHiddenItems (수정 화면의 진도 보호)', () => {
+  const group = {
+    id: 'g1',
+    memberCount: 4,
+    members: [
+      { id: 'p1', unlockEpisode: 1 },
+      { id: 'p2', unlockEpisode: 40 },
+      { id: 'p3', unlockEpisode: 5 },
+    ],
+    milestones: [
+      { id: 'm1', unlockEpisode: 4 },
+      { id: 'm2', unlockEpisode: 50 },
+      { id: 'm3', unlockEpisode: 12 },
+    ],
+    relations: { friendly: [{ id: 'g2', name: '래번클로', memberCount: 9 }] },
+  }
+
+  it('진도 이후 구성원·행적을 빼고 인원에서도 뺀다. 행적은 최신 순이고 관계 단체 인원은 숨긴다', () => {
+    const { visible, hiddenMembers, hiddenMilestones } = splitByProgress(group, 32)
+
+    expect(visible.members.map((item) => item.id)).toEqual(['p1', 'p3'])
+    expect(visible.milestones.map((item) => item.id)).toEqual(['m3', 'm1'])
+    expect(visible.memberCount).toBe(3)
+    expect(visible.relations.friendly[0].memberCount).toBeUndefined()
+    expect(hiddenMembers.map((item) => item.id)).toEqual(['p2'])
+    expect(hiddenMilestones.map((item) => item.id)).toEqual(['m2'])
+  })
+
+  it('진도를 모르면 아무것도 가리지 않고, 단체가 없으면 빈 결과다', () => {
+    const { visible, hiddenMembers } = splitByProgress(group)
+
+    expect(visible.members).toHaveLength(3)
+    expect(hiddenMembers).toEqual([])
+    expect(splitByProgress(undefined, 32)).toEqual({
+      visible: undefined,
+      hiddenMembers: [],
+      hiddenMilestones: [],
+    })
+  })
+
+  it('제출할 때 가려 둔 구성원은 끝에, 가려 둔 행적(더 최신)은 앞에 다시 붙인다', () => {
+    const { hiddenMembers, hiddenMilestones } = splitByProgress(group, 32)
+    const detail = {
+      members: [{ id: 'p1' }],
+      relations: {},
+      milestones: [{ id: 'm3' }, { id: 'm1' }],
+    }
+    const result = withHiddenItems(detail, { hiddenMembers, hiddenMilestones })
+
+    expect(result.members.map((item) => item.id)).toEqual(['p1', 'p2'])
+    expect(result.milestones.map((item) => item.id)).toEqual(['m2', 'm3', 'm1'])
   })
 })

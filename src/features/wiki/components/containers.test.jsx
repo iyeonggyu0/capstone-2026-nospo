@@ -107,6 +107,13 @@ describe('GroupListContainer', () => {
     expect(html).toContain('신규 단체 추가')
   })
 
+  it('서버의 전체 인원수는 진도 이후 구성원까지 세므로 수정 목록에서도 숨기고 -로 보여준다', async () => {
+    const html = await renderContainer(<GroupListContainer />, seedList)
+
+    expect(html).not.toContain('1명')
+    expect(html).toContain('>-<')
+  })
+
   it('이동 때 넘어온 진도가 있으면 서버가 준 진도 문구 대신 그 값으로 보여준다', async () => {
     const html = await renderContainer(<GroupListContainer position={40} />, seedList)
 
@@ -270,17 +277,32 @@ describe('GroupDetailContainer (새로 추가한 단체)', () => {
   it('서버에 없는 초안 단체도 찾을 수 없다고 하지 않고 스토어의 초안으로 보여준다', async () => {
     useGroupDraftStore.getState().addGroup('default', { name: '신규 단체', unlockEpisode: 3 })
 
-    const html = await renderContainer(<GroupDetailContainer groupId="draft-1" mode="edit" />)
+    const html = await renderContainer(
+      <GroupDetailContainer groupId="draft-1" mode="edit" />,
+      seedList,
+    )
 
     expect(html).toContain('신규 단체')
     expect(html).not.toContain('단체를 찾을 수 없어요.')
     expect(html).not.toContain('불러오는 중')
   })
 
-  it('새로 추가한 단체는 편집하기 전에도 검수 제출 버튼이 활성이다', async () => {
+  it('현재 진도를 알기 전에는 새 단체 화면을 보여주지 않고 불러오는 중으로 둔다', async () => {
     useGroupDraftStore.getState().addGroup('default', { name: '신규 단체', unlockEpisode: 3 })
 
     const html = await renderContainer(<GroupDetailContainer groupId="draft-1" mode="edit" />)
+
+    expect(html).toContain('단체 정보를 불러오는 중이에요.')
+    expect(html).not.toContain('검수 제출')
+  })
+
+  it('새로 추가한 단체는 편집하기 전에도 검수 제출 버튼이 활성이다', async () => {
+    useGroupDraftStore.getState().addGroup('default', { name: '신규 단체', unlockEpisode: 3 })
+
+    const html = await renderContainer(
+      <GroupDetailContainer groupId="draft-1" mode="edit" />,
+      seedList,
+    )
 
     expect(getSubmitButtonTag(html)).not.toMatch(DISABLED_ATTRIBUTE)
   })
@@ -355,6 +377,29 @@ describe('GroupDetailContainer (임시 저장·구성원 선택)', () => {
     )
 
     expect(html).not.toContain('아직 모르는 인물')
+  })
+
+  it('수정 화면도 현재 진도 이후 구성원은 이름과 인원에서 모두 숨긴다', async () => {
+    const html = await renderContainer(
+      <GroupDetailContainer groupId="g1" mode="edit" />,
+      (client) =>
+        client.setQueryData(groupQueryKeys.detail('g1'), {
+          book: fixtureBook,
+          group: {
+            ...fixtureGroup,
+            memberCount: 2,
+            members: [
+              { id: 'p1', name: '서하준', unlockEpisode: 1 },
+              { id: 'p9', name: '뒤에 나오는 인물', unlockEpisode: 40 },
+            ],
+          },
+        }),
+    )
+
+    expect(html).toContain('서하준')
+    expect(html).not.toContain('뒤에 나오는 인물')
+    expect(html).toContain('1명')
+    expect(html).not.toContain('2명')
   })
 })
 
@@ -433,5 +478,12 @@ describe('GroupDetailContainer', () => {
 
     expect(html).toContain('단체를 찾을 수 없어요.')
     expect(html).not.toContain('다시 시도')
+  })
+
+  it('초안이 비워진 임시 단체 식별자는 서버에 묻지 않고 바로 찾을 수 없음으로 보여준다', async () => {
+    const html = await renderContainer(<GroupDetailContainer groupId="draft-9" mode="edit" />)
+
+    expect(html).toContain('단체를 찾을 수 없어요.')
+    expect(html).not.toContain('단체 정보를 불러오는 중이에요.')
   })
 })

@@ -62,12 +62,15 @@ export const useGroupDetailDraft = (group) => {
     setMembers((previous) => previous.filter((member) => member.id !== id))
   }
 
-  /** 이름으로 관계 단체를 `우호` 구간 끝에 추가한다. 어느 구간이든 이미 같은 이름이 있으면 추가하지 않는다. */
+  /** 이름으로 관계 단체를 `우호` 구간 끝에 추가한다. 어느 구간이든 이미 같은 이름이 있거나 이 단체 자신의 이름이면 추가하지 않는다. */
   const addRelation = (name) => {
     const trimmed = name.trim()
-    const isDuplicate = Object.values(relations)
-      .flat()
-      .some((related) => related.name.trim().toLowerCase() === trimmed.toLowerCase())
+    const isSame = (other) => other?.trim().toLowerCase() === trimmed.toLowerCase()
+    const isDuplicate =
+      isSame(group?.name) ||
+      Object.values(relations)
+        .flat()
+        .some((related) => isSame(related.name))
     if (!trimmed || isDuplicate) return
 
     lastDraftNumber.current += 1

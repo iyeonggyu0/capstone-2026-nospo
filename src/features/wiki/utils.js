@@ -483,12 +483,31 @@ export const isEmptyDetailEdit = (edit, base) =>
   JSON.stringify(applyDetailEdit(base, edit)) ===
   JSON.stringify({
     members: base?.members ?? [],
+    // 서버가 관계 구분을 어떤 순서로 보내도 같게 보도록, `applyDetailEdit`과 같은 구분 순서로 맞춰 비교한다.
     relations: Object.fromEntries(
-      Object.entries(base?.relations ?? {}).filter(([, items]) => items.length > 0),
+      RELATION_TYPES.concat(Object.keys(base?.relations ?? {}))
+        .filter((type, index, types) => types.indexOf(type) === index)
+        .map((type) => [type, base?.relations?.[type] ?? []])
+        .filter(([, items]) => items.length > 0),
     ),
     // 상세 화면은 행적을 처음에 최신순으로 정렬해 보여주므로, 손대지 않은 상태의 기준도 최신순이다.
     milestones: sortMilestonesLatest(base?.milestones ?? []),
   })
+
+/**
+ * 관계에 나오는 단체들의 인원수를 숨긴다. 서버가 주는 인원수는 그 단체의 현재 진도 이후 구성원까지 센 값이라,
+ * 보기 화면에 그대로 보여주면 아직 등장하지 않은 구성원의 존재가 드러난다.
+ *
+ * @param {{ friendly?: Array, hostile?: Array, neutral?: Array }} [relations] 관계별 단체 목록
+ * @returns {object} 인원수만 지운 새 관계 객체
+ */
+export const hideRelatedMemberCounts = (relations = {}) =>
+  Object.fromEntries(
+    Object.entries(relations).map(([type, groups]) => [
+      type,
+      groups.map((group) => ({ ...group, memberCount: undefined })),
+    ]),
+  )
 
 /**
  * 위키 내용(보기)의 단체 상세 화면으로 이동하는 주소를 만든다. 단체 식별자는 쿼리(`?groupId=`)로 전달하고 특수문자는 안전하게 인코딩한다.
@@ -511,3 +530,50 @@ export const filterUnlocked = (items = [], maxEpisode) =>
   maxEpisode == null
     ? items
     : items.filter((item) => item.unlockEpisode == null || item.unlockEpisode <= maxEpisode)
+
+/**
+ * 서버가 준 단체 상세를 현재 진도에 맞게 보이는 부분과 가려진 부분으로 나눈다.
+ * 보이는 부분은 진도 이후 구성원·행적을 빼고(가린 구성원 수만큼 인원도 빼며), 행적을 최신 순으로 정렬하고, 관계 단체의 인원수를 숨긴다.
+ * 가려진 구성원·행적은 따로 돌려줘서, 수정 내용을 제출할 때 지워지지 않게 다시 붙일 수 있다.
+ *
+ * @param {{ members?: Array, milestones?: Array, relations?: object, memberCount?: number } | undefined} group 서버가 준 단체 상세
+ * @param {number} [maxEpisode] 현재 진도(읽은 회차). 없으면 거르지 않는다.
+ * @returns {{ visible: object | undefined, hiddenMembers: Array, hiddenMilestones: Array }} 보이는 단체와 가려진 항목
+ */
+export const splitByProgress = (group, maxEpisode) => {
+  if (!group) return { visible: undefined, hiddenMembers: [], hiddenMilestones: [] }
+
+  const members = filterUnlocked(group.members, maxEpisode)
+  const milestones = filterUnlocked(group.milestones, maxEpisode)
+  const hiddenMembers = (group.members ?? []).filter((item) => !members.includes(item))
+  const hiddenMilestones = (group.milestones ?? []).filter((item) => !milestones.includes(item))
+
+  return {
+    visible: {
+      ...group,
+      members,
+      memberCount:
+        group.memberCount != null
+          ? Math.max(0, group.memberCount - hiddenMembers.length)
+          : undefined,
+      milestones: sortMilestonesLatest(milestones),
+      relations: hideRelatedMemberCounts(group.relations),
+    },
+    hiddenMembers,
+    hiddenMilestones,
+  }
+}
+
+/**
+ * 편집한 단체 상세에 가려 두었던 구성원·행적을 다시 붙인다. 진도 이후라 화면에서 숨긴 항목이 제출할 때 지워지지 않게 한다.
+ * 가려진 구성원은 목록 끝에, 가려진 행적(더 최신)은 최신 순을 지키도록 목록 앞에 붙인다.
+ *
+ * @param {{ members: Array, relations: object, milestones: Array }} detail 편집한 단체 상세
+ * @param {{ hiddenMembers?: Array, hiddenMilestones?: Array }} hidden `splitByProgress`가 돌려준 가려진 항목
+ * @returns {{ members: Array, relations: object, milestones: Array }} 가려진 항목을 다시 붙인 상세
+ */
+export const withHiddenItems = (detail, { hiddenMembers = [], hiddenMilestones = [] } = {}) => ({
+  ...detail,
+  members: [...detail.members, ...hiddenMembers],
+  milestones: [...sortMilestonesLatest(hiddenMilestones), ...detail.milestones],
+})
