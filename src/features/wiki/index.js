@@ -2,6 +2,7 @@ export { getShelf, getSearchHistory, searchBooks } from './api'
 export { WikiCharacterImagePicker } from './components/WikiCharacterImagePicker'
 export { WikiEmptyStateDialog } from './components/WikiEmptyStateDialog'
 export {
+  getPersonDraftKey,
   getPersonImage,
   restorePersonDraft,
   deletePersonDraft,

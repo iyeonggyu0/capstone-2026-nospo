@@ -39,9 +39,34 @@ export const storePersonImage = (key, file) =>
 /** 저장한 이미지 파일 원본을 다시 가져온다. */
 export const getPersonImage = (key) => withStore(IMAGE_STORE, 'readonly', (store) => store.get(key))
 
+/** 도서 ID와 작성 모드에 따른 초안 저장 키를 생성한다. */
+export const getPersonDraftKey = (bookId, mode = 'UPDATE') =>
+  mode === 'CREATE'
+    ? `nospo:wiki-person-draft:create:${bookId ?? 'preview'}`
+    : `nospo:wiki-person-draft:${bookId ?? 'preview'}`
+
+const omitImageUrl = (person) => {
+  const storedPerson = { ...person }
+  delete storedPerson.imageUrl
+  return storedPerson
+}
+
+const stripPreviewUrls = (draft) => {
+  if (Array.isArray(draft)) {
+    return draft.map(omitImageUrl)
+  }
+  if (draft && typeof draft === 'object' && Array.isArray(draft.people)) {
+    return {
+      ...draft,
+      people: draft.people.map(omitImageUrl),
+    }
+  }
+  return draft
+}
+
 /** 초안 인물 목록을 이미지 blob 키와 함께 브라우저에 영구 저장한다. */
-export const storePersonDraft = (key, people) =>
-  withStore(DRAFT_STORE, 'readwrite', (store) => store.put(people, key))
+export const storePersonDraft = (key, draft) =>
+  withStore(DRAFT_STORE, 'readwrite', (store) => store.put(stripPreviewUrls(draft), key))
 
 /** 저장하지 않기로 한 인물 초안과 초안 이미지 파일을 제거한다. */
 export const deletePersonDraft = async (key, imageKeys = []) => {

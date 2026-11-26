@@ -3,13 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/common-ui'
 import { ROUTES } from '@/constants/routes'
-import { restorePersonDraft } from '@/features/wiki'
+import { getPersonDraftKey, restorePersonDraft } from '@/features/wiki'
 import bookCoverPreview from '@/assets/images/wiki-book-cover-preview.png'
-
-const draftKey = (bookId, mode) =>
-  mode === 'CREATE'
-    ? `nospo:wiki-person-draft:create:${bookId ?? 'preview'}`
-    : `nospo:wiki-person-draft:${bookId ?? 'preview'}`
 
 const previewUpdatePeople = [
   {
@@ -44,7 +39,7 @@ const WikiAddPage = () => {
       : book.progressUnit === 'PAGE' || book.unit === 'PAGE'
         ? 'PAGE'
         : 'EPISODE'
-  const positionUnit = initialUnit
+  const [positionUnit, setPositionUnit] = useState(initialUnit)
   const [positionInput, setPositionInput] = useState(
     String(typeof initialPosition === 'object' ? initialPosition.value : initialPosition),
   )
@@ -63,9 +58,19 @@ const WikiAddPage = () => {
 
   useEffect(() => {
     let active = true
-    restorePersonDraft(draftKey(bookId, mode))
+    restorePersonDraft(getPersonDraftKey(bookId, mode))
       .then((draft) => {
-        if (active && draft) setPeople(draft.people)
+        if (!active || !draft) return
+        setPeople(draft.people)
+        if (draft.position) {
+          setPosition(draft.position)
+          setPositionInput(
+            String(typeof draft.position === 'object' ? draft.position.value : draft.position),
+          )
+        }
+        if (draft.positionUnit) {
+          setPositionUnit(draft.positionUnit)
+        }
       })
       .catch(() => {})
     return () => {
@@ -254,7 +259,12 @@ const WikiAddPage = () => {
         )}
       </main>
       {positionDialogOpen && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-text-primary/35 px-9 py-8 backdrop-blur-[1.5px]">
+        <div
+          className="fixed inset-0 z-30 flex items-center justify-center bg-text-primary/35 px-9 py-8 backdrop-blur-[1.5px]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setPositionDialogOpen(false)
+          }}
+        >
           <form
             aria-modal="true"
             className="w-full max-w-[318px] rounded-xl bg-surface p-6 shadow-xl"
@@ -272,7 +282,17 @@ const WikiAddPage = () => {
               setPositionDialogOpen(false)
             }}
           >
-            <h2 className="text-title font-bold">읽은 지점 설정</h2>
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="text-title font-bold">읽은 지점 설정</h2>
+              <button
+                aria-label="닫기"
+                className="-mt-1 -mr-1 flex size-8 items-center justify-center text-text-secondary"
+                onClick={() => setPositionDialogOpen(false)}
+                type="button"
+              >
+                ×
+              </button>
+            </div>
             <p className="mt-1 text-label text-text-secondary">
               위키를 작성할 때 공개할 수 있는 정보 범위를 정해요.
             </p>

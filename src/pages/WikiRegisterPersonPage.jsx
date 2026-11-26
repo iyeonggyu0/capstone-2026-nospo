@@ -9,6 +9,7 @@ import {
   createWikiCharacterProfile,
   createWikiDraft,
   deletePersonDraft,
+  getPersonDraftKey,
   getPersonImage,
   getWikiOrganizations,
   restorePersonDraft,
@@ -103,11 +104,21 @@ const tabs = [
   { id: 'OTHER', label: '기타' },
 ]
 
-const getDraftStorageKey = (bookId, mode = 'UPDATE') =>
-  mode === 'CREATE'
-    ? `nospo:wiki-person-draft:create:${bookId ?? 'preview'}`
-    : `nospo:wiki-person-draft:${bookId ?? 'preview'}`
 const makeLocalPersonId = () => `local-${Date.now()}`
+const makeLocalEntryId = () =>
+  window.crypto?.randomUUID?.() ?? `entry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+const extractProfileFields = (source, revealAt) => ({
+  name: (source.name ?? '').trim(),
+  affiliation: source.affiliation ?? '',
+  organizationId: source.organizationId ?? null,
+  gender: source.gender ?? '',
+  role: source.role ?? '',
+  personality: source.personality ?? '',
+  age: source.age ?? '',
+  revealAt,
+  ...(source.imageAssetId ? { imageAssetId: source.imageAssetId } : {}),
+})
 
 const emptyPerson = (revealAt = 1) => ({
   name: '',
@@ -253,7 +264,7 @@ const WikiRegisterPersonPage = () => {
   useEffect(() => {
     let cancelled = false
     const objectUrls = previewUrls.current
-    restorePersonDraft(getDraftStorageKey(bookId, mode))
+    restorePersonDraft(getPersonDraftKey(bookId, mode))
       .then((savedDraft) => {
         if (!cancelled && savedDraft) {
           savedDraft.people.forEach((person) => {
@@ -304,18 +315,13 @@ const WikiRegisterPersonPage = () => {
   }, [bookId, positionValue, mode])
 
   useEffect(() => {
-    if (!isDraftLoaded) return
-    const savedPeople = people.map((person) => {
-      const savedPerson = { ...person }
-      delete savedPerson.imageUrl
-      return savedPerson
-    })
-    storePersonDraft(getDraftStorageKey(bookId, mode), {
+    if (!isDraftLoaded || isSubmitted) return
+    storePersonDraft(getPersonDraftKey(bookId, mode), {
       position,
       positionUnit,
-      people: savedPeople,
+      people,
     }).catch(() => {})
-  }, [people, position, positionUnit, bookId, mode, isDraftLoaded])
+  }, [people, position, positionUnit, bookId, mode, isDraftLoaded, isSubmitted])
 
   const sourcePerson = people.find((person) => person.id === activePersonId)
   const activeProfile = sourcePerson?.profiles
@@ -339,7 +345,11 @@ const WikiRegisterPersonPage = () => {
     const profile = [...(person.profiles ?? [])]
       .filter((item) => Number(item.revealAt) <= positionValue)
       .sort((a, b) => Number(b.revealAt) - Number(a.revealAt))[0]
-    setForm({ ...person, ...(profile ?? {}), revealAt: profile?.revealAt ?? person.firstRevealAt })
+    const revealAt = profile?.revealAt ?? person.firstRevealAt
+    setForm({
+      id: person.id,
+      ...extractProfileFields({ ...person, ...(profile ?? {}) }, revealAt),
+    })
     setModal('edit')
   }
   const closeModal = () => {
@@ -367,17 +377,23 @@ const WikiRegisterPersonPage = () => {
       setNotice('이름을 입력해 주세요.')
       return
     }
-    if (Number(form.revealAt) > positionValue) {
+    const revealAt = Number(form.revealAt)
+    if (!Number.isInteger(revealAt) || revealAt < 1) {
+      setNotice('기준 회차는 1 이상의 정수로 입력해 주세요.')
+      return
+    }
+    if (revealAt > positionValue) {
       setNotice(`기준 회차는 읽은 지점 ${positionValue}${positionUnitLabel}보다 뒤일 수 없어요.`)
       return
     }
+    const profile = extractProfileFields(form, revealAt)
     if (modal === 'create') {
-      const profile = { ...form, revealAt: Number(form.revealAt) || positionValue }
       const person = {
-        ...form,
-        firstRevealAt: profile.revealAt,
+        ...profile,
+        firstRevealAt: revealAt,
         profiles: [profile],
         id: makeLocalPersonId(),
+        imageUrl: '',
       }
       setPeople((items) => [...items, person])
       setActivePersonId(person.id)
@@ -386,13 +402,11 @@ const WikiRegisterPersonPage = () => {
       setPeople((items) =>
         items.map((person) => {
           if (person.id !== form.id) return person
-          const revealAt = Number(form.revealAt) || positionValue
           const profiles = [...(person.profiles ?? [])]
           const profileIndex = profiles.findIndex((item) => Number(item.revealAt) === revealAt)
-          const profile = { ...form, name: form.name.trim(), revealAt }
           if (profileIndex < 0) profiles.push(profile)
           else profiles[profileIndex] = profile
-          return { ...person, profiles, ...profile, firstRevealAt: person.firstRevealAt }
+          return { ...person, ...profile, profiles, firstRevealAt: person.firstRevealAt }
         }),
       )
       setNotice('인물 정보를 수정했어요.')
@@ -403,7 +417,7 @@ const WikiRegisterPersonPage = () => {
   const discard = async () => {
     try {
       await deletePersonDraft(
-        getDraftStorageKey(bookId, mode),
+        getPersonDraftKey(bookId, mode),
         people.map((person) => person.imageKey).filter(Boolean),
       )
       navigate(-1)
@@ -412,15 +426,10 @@ const WikiRegisterPersonPage = () => {
     }
   }
   const saveDraftAndReturn = () => {
-    const storedPeople = people.map((person) => {
-      const storedPerson = { ...person }
-      delete storedPerson.imageUrl
-      return storedPerson
-    })
-    storePersonDraft(getDraftStorageKey(bookId, mode), {
+    storePersonDraft(getPersonDraftKey(bookId, mode), {
       position,
       positionUnit,
-      people: storedPeople,
+      people,
     })
       .then(() => {
         navigate(-1)
@@ -428,16 +437,11 @@ const WikiRegisterPersonPage = () => {
       .catch((error) => setNotice(error.message || '임시 저장에 실패했어요.'))
   }
   const returnToWikiAdd = async () => {
-    const storedPeople = people.map((person) => {
-      const savedPerson = { ...person }
-      delete savedPerson.imageUrl
-      return savedPerson
-    })
     try {
-      await storePersonDraft(getDraftStorageKey(bookId, mode), {
+      await storePersonDraft(getPersonDraftKey(bookId, mode), {
         position,
         positionUnit,
-        people: storedPeople,
+        people,
       })
       navigate(ROUTES.WIKI_ADD_PAGE, {
         state: {
@@ -505,14 +509,10 @@ const WikiRegisterPersonPage = () => {
     setIsSubmitting(true)
     try {
       if (mockMode) {
-        await storePersonDraft(getDraftStorageKey(bookId, mode), {
+        await storePersonDraft(getPersonDraftKey(bookId, mode), {
           position,
           positionUnit,
-          people: people.map((person) => {
-            const storedPerson = { ...person }
-            delete storedPerson.imageUrl
-            return storedPerson
-          }),
+          people,
         })
         setIsSubmitted(true)
         setNotice('목업: 위키 변경 내용을 검수 제출했어요.')
@@ -618,6 +618,10 @@ const WikiRegisterPersonPage = () => {
         etag,
         idempotencyKey: window.crypto.randomUUID(),
       })
+      await deletePersonDraft(
+        getPersonDraftKey(bookId, mode),
+        people.map((person) => person.imageKey).filter(Boolean),
+      ).catch(() => {})
       const hasUnlinkedAffiliation = people.some((person) => person.affiliation)
       setIsSubmitted(true)
       setNotice(
@@ -662,6 +666,7 @@ const WikiRegisterPersonPage = () => {
     const entries = getEntriesForTab(activePerson, selectedTab)
     const entry = {
       ...entryDraft,
+      id: entryDraft.id ?? makeLocalEntryId(),
       title: entryDraft.title.trim(),
       content: entryDraft.content?.trim() ?? '',
       revealAt: Number(entryDraft.revealAt) || positionValue,
@@ -703,21 +708,25 @@ const WikiRegisterPersonPage = () => {
         const relations = Object.fromEntries(
           Object.entries(person.relations ?? {}).map(([type, entries]) => [type, [...entries]]),
         )
-        if (relationDraft.index != null) {
-          const oldType = relationDraft.originalType
-          relations[oldType] = (relations[oldType] ?? []).filter(
-            (_, index) => index !== relationDraft.index,
-          )
-          if (relations[oldType].length === 0) delete relations[oldType]
-        }
         const group = relationDraft.type
-        relations[group] = [
-          ...(relations[group] ?? []),
-          {
-            name: relationDraft.name.trim(),
-            revealAt: Number(relationDraft.revealAt) || positionValue,
-          },
-        ]
+        const nextRelation = {
+          name: relationDraft.name.trim(),
+          revealAt: Number(relationDraft.revealAt) || positionValue,
+        }
+        if (relationDraft.index != null && relationDraft.originalType === group) {
+          relations[group] = (relations[group] ?? []).map((item, idx) =>
+            idx === relationDraft.index ? nextRelation : item,
+          )
+        } else {
+          if (relationDraft.index != null) {
+            const oldType = relationDraft.originalType
+            relations[oldType] = (relations[oldType] ?? []).filter(
+              (_, index) => index !== relationDraft.index,
+            )
+            if (relations[oldType].length === 0) delete relations[oldType]
+          }
+          relations[group] = [...(relations[group] ?? []), nextRelation]
+        }
         return { ...person, relations }
       }),
     )
@@ -728,7 +737,9 @@ const WikiRegisterPersonPage = () => {
   const deleteRelation = (group, index) => {
     if (!activePerson) return
     const relations = { ...(activePerson.relations ?? {}) }
-    relations[group] = relations[group].filter((_, i) => i !== index)
+    const nextGroup = (relations[group] ?? []).filter((_, i) => i !== index)
+    if (nextGroup.length > 0) relations[group] = nextGroup
+    else delete relations[group]
     setPeople((items) =>
       items.map((person) => (person.id === activePerson.id ? { ...person, relations } : person)),
     )
@@ -917,11 +928,16 @@ const WikiRegisterPersonPage = () => {
             <div className="rounded-xl border border-border p-3">
               <div className="flex items-start gap-3">
                 <WikiCharacterImagePicker
+                  key={activePerson.id}
                   imageUrl={activePerson.imageUrl}
                   onFileSelected={async (file) => {
-                    const imageKey = `${getDraftStorageKey(bookId, mode)}:${activePerson.id}`
+                    const imageKey = `${getPersonDraftKey(bookId, mode)}:${activePerson.id}`
                     try {
                       await storePersonImage(imageKey, file)
+                      if (activePerson.imageUrl && previewUrls.current.has(activePerson.imageUrl)) {
+                        URL.revokeObjectURL(activePerson.imageUrl)
+                        previewUrls.current.delete(activePerson.imageUrl)
+                      }
                       const imageUrl = URL.createObjectURL(file)
                       previewUrls.current.add(imageUrl)
                       setPeople((items) =>
@@ -1296,7 +1312,7 @@ const WikiRegisterPersonPage = () => {
                       .map(({ entry, index }) => (
                         <li
                           className={`flex items-center gap-2 border-b border-border/50 ${selectedTab === 'ABILITY' ? 'min-h-[68px]' : 'min-h-[48px]'}`}
-                          key={`${entry.title}-${index}`}
+                          key={entry.id ?? `${entry.title}-${index}`}
                         >
                           {selectedTab === 'ABILITY' ? (
                             <>
@@ -1551,7 +1567,12 @@ const WikiRegisterPersonPage = () => {
       )}
 
       {positionDialogOpen && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-text-primary/35 px-9 py-8 backdrop-blur-[1.5px]">
+        <div
+          className="fixed inset-0 z-30 flex items-center justify-center bg-text-primary/35 px-9 py-8 backdrop-blur-[1.5px]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setPositionDialogOpen(false)
+          }}
+        >
           <form
             aria-labelledby="reading-position-title"
             aria-modal="true"
@@ -1578,9 +1599,19 @@ const WikiRegisterPersonPage = () => {
               setNotice('읽은 지점을 설정했어요.')
             }}
           >
-            <h2 className="text-title font-bold" id="reading-position-title">
-              읽은 지점 설정
-            </h2>
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="text-title font-bold" id="reading-position-title">
+                읽은 지점 설정
+              </h2>
+              <button
+                aria-label="닫기"
+                className="-mt-1 -mr-1 flex size-8 items-center justify-center text-text-secondary"
+                onClick={() => setPositionDialogOpen(false)}
+                type="button"
+              >
+                ×
+              </button>
+            </div>
             <p className="mt-1 text-label text-text-secondary">
               위키를 작성·수정할 때 발생할 수 있는 스포일러를 제한해요.
             </p>
