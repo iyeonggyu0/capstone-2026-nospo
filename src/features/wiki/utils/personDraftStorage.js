@@ -32,6 +32,33 @@ const withStore = async (storeName, mode, action) => {
   })
 }
 
+/** 제출 진행 상태는 IndexedDB 트랜잭션이 끝난 뒤에만 저장 성공으로 처리한다. */
+const journalStore = async (mode, action) => {
+  const database = await openDatabase()
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(DRAFT_STORE, mode)
+    const request = action(transaction.objectStore(DRAFT_STORE))
+    transaction.oncomplete = () => {
+      database.close()
+      resolve(request.result)
+    }
+    transaction.onerror = () => {
+      database.close()
+      reject(transaction.error)
+    }
+    transaction.onabort = () => {
+      database.close()
+      reject(transaction.error ?? new Error('저장 취소'))
+    }
+  })
+}
+
+export const getSubmissionJournal = (key) => journalStore('readonly', (store) => store.get(key))
+export const saveSubmissionJournal = (key, journal) =>
+  journalStore('readwrite', (store) => store.put(journal, key))
+export const deleteSubmissionJournal = (key) =>
+  journalStore('readwrite', (store) => store.delete(key))
+
 /** 이미지 파일 원본을 IndexedDB에 저장해 blob URL 만료 후에도 복구할 수 있게 한다. */
 export const storePersonImage = (key, file) =>
   withStore(IMAGE_STORE, 'readwrite', (store) => store.put(file, key))

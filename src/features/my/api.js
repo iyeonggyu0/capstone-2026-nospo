@@ -6,6 +6,8 @@ export const myApi = {
   updateNickname: async (nickname) =>
     (await apiClient.patch('/v1/me/nickname', { nickname })).data.data,
   changePassword: async (currentPassword, newPassword) => {
+    // 비밀번호 오류와 만료된 토큰이 같은 401 코드이므로 보호 조회로 먼저 세션을 갱신한다.
+    await apiClient.get('/v1/me')
     await apiClient.patch(
       '/v1/me/password',
       { currentPassword, newPassword },

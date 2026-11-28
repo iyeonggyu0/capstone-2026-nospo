@@ -3,7 +3,19 @@ import { expect, it, vi } from 'vitest'
 vi.mock('@/lib/api-client', () => ({ apiClient: { get: vi.fn(), patch: vi.fn() } }))
 
 import { apiClient } from '@/lib/api-client'
-import { changeShelfProgress, getShelf } from './api'
+import { changeShelfProgress, getShelf, getWikiImage } from './api'
+
+it('위키 이미지는 신뢰된 API 경로로 인증 클라이언트를 사용한다', async () => {
+  const blob = new Blob(['image'])
+  apiClient.get.mockResolvedValueOnce({ data: blob })
+  await expect(getWikiImage('/api/v1/wiki/assets/abcdef-123?positionValue=2')).resolves.toBe(blob)
+  expect(apiClient.get).toHaveBeenCalledWith('/v1/wiki/assets/abcdef-123?positionValue=2', {
+    responseType: 'blob',
+    signal: undefined,
+  })
+  await expect(getWikiImage('https://other.example/api/v1/wiki/assets/abcdef')).rejects.toThrow()
+  apiClient.get.mockClear()
+})
 
 it('진도 변경에는 최신 ETag를 전송하고 ETag가 없으면 변경하지 않는다', async () => {
   apiClient.get.mockResolvedValueOnce({ headers: { etag: '"3"' } })

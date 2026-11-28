@@ -11,6 +11,7 @@ export {
   getSearchHistory,
   getVisibleWikiEntities,
   getVisibleWikiEntity,
+  getWikiImage,
   searchBooks,
 } from './api'
 export {
@@ -26,6 +27,7 @@ export {
   deletePersonDraft,
   storePersonDraft,
   storePersonImage,
+  deleteSubmissionJournal,
 } from './utils/personDraftStorage'
 export {
   createWikiCharacter,
@@ -51,3 +53,4 @@ export {
 } from './api/wikiDrafts'
 export { WikiEmptyStateDialog } from './components/WikiEmptyStateDialog'
 export { WikiCharacterImagePicker } from './components/WikiCharacterImagePicker'
+export { submitPersonDraft } from './api/submitPersonDraft'

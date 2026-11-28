@@ -3,20 +3,16 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/common-ui'
 import { ROUTES } from '@/constants/routes'
+import { useAuth } from '@/features/auth'
 import {
-  createWikiCharacter,
-  createWikiCharacterEntry,
-  createWikiCharacterProfile,
-  createWikiDraft,
   deletePersonDraft,
+  deleteSubmissionJournal,
   getPersonDraftKey,
-  getPersonImage,
   getWikiOrganizations,
   restorePersonDraft,
   storePersonDraft,
   storePersonImage,
-  submitWikiDraft,
-  uploadWikiDraftAsset,
+  submitPersonDraft,
   WikiCharacterImagePicker,
 } from '@/features/wiki'
 import chevronLeft from '@/assets/icons/header/chevron-left.svg'
@@ -154,11 +150,6 @@ const getMaximumPosition = (book, unit) => {
   return Number(book.totalPositions ?? total ?? book.totalCount) || undefined
 }
 
-const toApiPosition = (position, fallbackValue = 1, unit = 'EPISODE') =>
-  position && typeof position === 'object'
-    ? position
-    : { unit, value: Number(position) || fallbackValue }
-
 const getPositionLabel = (position, mode) => {
   const action = mode === 'CREATE' ? '등록' : '수정'
   const volume = position?.volume ?? position?.volumeNumber
@@ -202,6 +193,7 @@ const WikiRegisterPersonPage = () => {
   const params = useMemo(() => new URLSearchParams(location.search), [location.search])
   const book = useMemo(() => location.state?.book ?? {}, [location.state?.book])
   const bookId = location.state?.bookId ?? params.get('bookId')
+  const memberId = useAuth((state) => state.member?.memberId)
   const isAddPersonRoute = location.pathname === ROUTES.WIKI_ADD_PERSON
   const mode =
     location.state?.mode ?? params.get('mode') ?? (isAddPersonRoute ? 'CREATE' : 'UPDATE')
@@ -524,109 +516,27 @@ const WikiRegisterPersonPage = () => {
         return
       }
 
-      const created = await createWikiDraft({
+      if (!memberId) throw new Error('로그인 정보를 확인할 수 없어요. 다시 로그인해 주세요.')
+      const journalKey = `${getPersonDraftKey(bookId, mode)}:submission:${memberId}`
+      await submitPersonDraft({
+        journalKey,
         bookId,
         mode,
-        position: toApiPosition(position, positionValue, positionUnit),
+        position,
+        positionUnit,
+        people,
         wikiId: location.state?.wikiId,
         baseWikiVersion: location.state?.baseWikiVersion,
       })
-      const draftId = created.data?.draftId ?? created.data?.id
-      if (!draftId || !created.etag) throw new Error('초안 정보를 확인할 수 없어요.')
-      let etag = created.etag
-
-      for (const person of people) {
-        let imageAssetId = person.imageAssetId ?? null
-        if (person.imageKey) {
-          const image = await getPersonImage(person.imageKey)
-          if (!image) throw new Error(`${person.name}의 이미지를 다시 선택해 주세요.`)
-          const uploaded = await uploadWikiDraftAsset({ draftId, file: image, etag })
-          etag = uploaded.etag
-          imageAssetId = uploaded.data?.assetId ?? uploaded.data?.id ?? null
-          if (!etag || !imageAssetId) throw new Error('이미지 업로드 결과를 확인할 수 없어요.')
-        }
-        const profiles = person.profiles?.length
-          ? [...person.profiles].sort((a, b) => Number(a.revealAt) - Number(b.revealAt))
-          : [{ ...person, revealAt: person.firstRevealAt }]
-        const firstProfile = profiles[0]
-        const firstRevealAt = toApiPosition(person.firstRevealAt, positionValue, positionUnit)
-        const result = await createWikiCharacter({
-          draftId,
-          firstRevealAt,
-          etag,
-          profile: {
-            name: (firstProfile.name ?? person.name).trim(),
-            role: firstProfile.role || null,
-            description: firstProfile.personality || firstProfile.description || '',
-            imageAssetId,
-            revealAt: toApiPosition(
-              firstProfile.revealAt ?? person.firstRevealAt,
-              positionValue,
-              positionUnit,
-            ),
-          },
-        })
-        etag = result.etag
-        if (!etag) throw new Error('초안 버전 정보를 확인할 수 없어요.')
-        const characterId = result.data?.entityId ?? result.data?.characterId
-        if (
-          !characterId &&
-          (profiles.length > 1 ||
-            person.entries?.length ||
-            person.abilities?.length ||
-            person.otherEntries?.length)
-        ) {
-          throw new Error('인물 ID를 확인할 수 없어 세부 내용을 저장하지 못했어요.')
-        }
-        for (const profile of profiles.slice(1)) {
-          const savedProfile = await createWikiCharacterProfile({
-            draftId,
-            characterId,
-            etag,
-            profile: {
-              name: profile.name.trim(),
-              role: profile.role || null,
-              description: profile.personality || profile.description || '',
-              imageAssetId: profile.imageAssetId ?? imageAssetId,
-              revealAt: toApiPosition(profile.revealAt, positionValue, positionUnit),
-            },
-          })
-          etag = savedProfile.etag
-        }
-        for (const [type, entries] of [
-          ['EVENT', person.entries ?? []],
-          ['ABILITY', person.abilities ?? []],
-          ['OTHER', person.otherEntries ?? []],
-        ]) {
-          for (const entry of entries) {
-            const revealAt =
-              Number(entry.revealAt) || Number(firstProfile.revealAt) || positionValue
-            const savedEntry = await createWikiCharacterEntry({
-              draftId,
-              characterId,
-              etag,
-              entry: {
-                type,
-                title: entry.title,
-                content: entry.content ?? '',
-                revealAt: toApiPosition(revealAt, positionValue, positionUnit),
-                sourcePosition: toApiPosition(revealAt, positionValue, positionUnit),
-              },
-            })
-            etag = savedEntry.etag
-          }
-        }
+      try {
+        await deletePersonDraft(
+          getPersonDraftKey(bookId, mode),
+          people.map((person) => person.imageKey).filter(Boolean),
+        )
+        await deleteSubmissionJournal(journalKey)
+      } catch {
+        // 로컬 정리에 실패하면 제출 기록을 남겨 중복 제출을 방지한다.
       }
-
-      await submitWikiDraft({
-        draftId,
-        etag,
-        idempotencyKey: window.crypto.randomUUID(),
-      })
-      await deletePersonDraft(
-        getPersonDraftKey(bookId, mode),
-        people.map((person) => person.imageKey).filter(Boolean),
-      ).catch(() => {})
       const hasUnlinkedAffiliation = people.some((person) => person.affiliation)
       setIsSubmitted(true)
       setNotice(

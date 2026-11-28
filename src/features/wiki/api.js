@@ -50,3 +50,11 @@ export const getVisibleWikiEntity = async (bookId, kind, entityId, signal) =>
       { signal },
     )
   ).data.data
+
+/** 서버가 반환한 위키 이미지 경로만 인증 헤더와 함께 조회한다. */
+export const getWikiImage = async (imageUrl, signal) => {
+  const match = /^\/api(\/v1\/wiki\/assets\/[0-9a-f-]+)(\?positionValue=\d+)?$/i.exec(imageUrl)
+  if (!match) throw new Error('잘못된 위키 이미지 주소입니다.')
+  return (await apiClient.get(`${match[1]}${match[2] ?? ''}`, { responseType: 'blob', signal }))
+    .data
+}

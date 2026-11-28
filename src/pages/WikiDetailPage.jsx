@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/common-ui'
 import { ROUTES } from '@/constants/routes'
@@ -12,7 +12,31 @@ import {
   getShelfBook,
   getVisibleWikiEntities,
   getVisibleWikiEntity,
+  getWikiImage,
 } from '@/features/wiki'
+
+/** 인증이 필요한 공개 위키 이미지를 현재 진도 범위에서 불러온다. */
+const WikiImage = ({ imageUrl }) => {
+  const [image, setImage] = useState(null)
+  useEffect(() => {
+    const controller = new AbortController()
+    let objectUrl
+    getWikiImage(imageUrl, controller.signal)
+      .then((blob) => {
+        if (controller.signal.aborted) return
+        objectUrl = URL.createObjectURL(blob)
+        setImage({ imageUrl, objectUrl })
+      })
+      .catch(() => {})
+    return () => {
+      controller.abort()
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [imageUrl])
+  return image?.imageUrl === imageUrl ? (
+    <img src={image.objectUrl} alt="" className="size-12 rounded-full object-cover" />
+  ) : null
+}
 
 /** 도서를 서재에 등록하고 현재 진도에서 공개된 위키를 보여준다. */
 const WikiDetailPage = () => {
@@ -78,6 +102,7 @@ const WikiDetailPage = () => {
         const result = await addShelfBook(bookId, { unit, value })
         const permanentId = result.book?.bookId
         if (!permanentId) throw new Error('등록된 도서 정보를 확인할 수 없어요.')
+        queryClient.setQueryData(['shelfBook', permanentId], result)
         await queryClient.invalidateQueries({ queryKey: ['wiki', 'shelf'] })
         navigate(`${ROUTES.WIKI}/${encodeURIComponent(permanentId)}`, {
           replace: true,
@@ -231,13 +256,7 @@ const WikiDetailPage = () => {
                       onClick={() => setSelectedId(item.entityId)}
                       className="flex w-full gap-3 py-3 text-left"
                     >
-                      {item.imageUrl && (
-                        <img
-                          src={item.imageUrl}
-                          alt=""
-                          className="size-12 rounded-full object-cover"
-                        />
-                      )}
+                      {item.imageUrl && <WikiImage imageUrl={item.imageUrl} />}
                       <div>
                         <p className="text-body font-medium">{item.name}</p>
                         <p className="text-label text-text-secondary">{item.description}</p>

@@ -6,6 +6,20 @@ import { apiClient } from '@/lib/api-client'
 import { myApi } from './api'
 import { maskEmail } from './maskEmail'
 
+it('비밀번호 변경 전 보호 조회로 만료된 세션을 갱신할 기회를 준다', async () => {
+  apiClient.get.mockResolvedValueOnce({ data: { data: {} } })
+  apiClient.patch.mockResolvedValueOnce({ status: 204 })
+  await myApi.changePassword('current', 'new-password')
+  expect(apiClient.get).toHaveBeenCalledWith('/v1/me')
+  expect(apiClient.patch).toHaveBeenCalledWith(
+    '/v1/me/password',
+    { currentPassword: 'current', newPassword: 'new-password' },
+    { _skipAuthRefresh: true },
+  )
+  apiClient.get.mockClear()
+  apiClient.patch.mockClear()
+})
+
 it('회원 요약과 내역을 명세의 경로와 커서로 조회한다', async () => {
   const data = { items: [], nextCursor: null, hasNext: false }
   const { signal } = new AbortController()
