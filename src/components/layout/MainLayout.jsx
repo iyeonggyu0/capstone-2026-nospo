@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ROUTES } from '@/constants/routes'
 import { BottomNavigation } from './BottomNavigation'
@@ -61,8 +62,15 @@ const getHeaderProps = (pathname, search, navigate) => {
 export const MainLayout = () => {
   const { pathname, search } = useLocation()
   const navigate = useNavigate()
+  const mainRef = useRef(null)
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0
+  }, [pathname])
   const usePageHeader =
     pathname.startsWith(ROUTES.WIKI_REVIEW_LIST) ||
+    pathname === ROUTES.WIKI_ADD_PAGE ||
+    pathname === ROUTES.WIKI_ADD_PERSON ||
+    pathname === ROUTES.WIKI_REGISTER_PERSON ||
     pathname === ROUTES.MY_PROFILE ||
     (pathname === ROUTES.MY && new URLSearchParams(search).get('view') === 'transactions')
   // 단체 편집·보기 화면은 진도 변경이 필요해서 기본 헤더 대신 화면이 직접 헤더를 그린다.
@@ -72,6 +80,7 @@ export const MainLayout = () => {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <main
+        ref={mainRef}
         className={`min-h-0 flex-1 overflow-y-auto ${pathname.startsWith('/wiki/search/') ? 'bg-canvas' : 'bg-surface'}`}
       >
         {!usePageHeader && !hasOwnHeader && (

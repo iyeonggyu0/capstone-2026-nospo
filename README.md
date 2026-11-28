@@ -120,9 +120,13 @@ API 호출 함수 → TanStack Query hook → 화면 컴포넌트
 /auth/signup                회원가입
 /wiki                       위키 도서 목록
 /wiki/search/:searchType    이름·저자·ISBN 검색
+/wiki/add/empty             검색 결과에 위키가 없음
+/wiki/add/page              위키 내용 개요·읽은 지점
+/wiki/add/person            신규 인물 추가
 /wiki/:wikiId               위키 상세
 /wiki/:wikiId/relations     관계도
-/wiki/register/*            위키 등록
+/wiki/register              기존 위키 수정 진입
+/wiki/register/person       기존 인물 수정
 /wiki/reviews/*             신청 위키 검수
 /my                         마이 요약
 /my/profile                 내 정보 변경
