@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 vi.mock('./wikiDrafts', () => ({
   createWikiCharacter: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock('../utils/personDraftStorage', () => ({
 
 import * as api from './wikiDrafts'
 import * as storage from '../utils/personDraftStorage'
-import { submitPersonDraft } from './submitPersonDraft'
+import { resetPersonSubmission, submitPersonDraft } from './submitPersonDraft'
 
 const input = {
   journalKey: 'journal',
@@ -39,6 +39,20 @@ const input = {
 let journal
 beforeEach(() => {
   vi.clearAllMocks()
+  const held = new Set()
+  vi.stubGlobal('navigator', {
+    locks: {
+      request: async (key, options, callback) => {
+        if (held.has(key)) return callback(null)
+        held.add(key)
+        try {
+          return await callback({ name: key })
+        } finally {
+          held.delete(key)
+        }
+      },
+    },
+  })
   journal = undefined
   storage.getSubmissionJournal.mockImplementation(async () => structuredClone(journal))
   storage.saveSubmissionJournal.mockImplementation(async (_, value) => {
@@ -52,6 +66,7 @@ beforeEach(() => {
   api.createWikiCharacterEntry.mockResolvedValue({ data: { entryId: 'entry' }, etag: '"3"' })
   api.submitWikiDraft.mockResolvedValue({ submissionId: 'submission' })
 })
+afterEach(() => vi.unstubAllGlobals())
 
 it('확인된 단계는 재실행하지 않고 성별과 성향을 각각 보존한다', async () => {
   api.createWikiCharacterEntry.mockRejectedValueOnce({ response: { status: 422 } })
@@ -108,4 +123,36 @@ it('업로드된 이미지를 바꿨다면 오래된 이미지를 재사용하�
   })
   expect(api.uploadWikiDraftAsset).toHaveBeenCalledTimes(1)
   expect(api.submitWikiDraft).not.toHaveBeenCalled()
+})
+
+it('동시 제출과 기록 초기화는 같은 도서 잠금을 공유한다', async () => {
+  let finish
+  api.createWikiDraft.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve
+    }),
+  )
+  const first = submitPersonDraft(input)
+  await vi.waitFor(() => expect(api.createWikiDraft).toHaveBeenCalledTimes(1))
+  await expect(submitPersonDraft(input)).rejects.toThrow('다른 탭')
+  await expect(resetPersonSubmission(input.journalKey)).rejects.toThrow('다른 탭')
+  finish({ data: { draftId: 'draft' }, etag: '"1"' })
+  await first
+  await submitPersonDraft(input)
+  expect(api.createWikiDraft).toHaveBeenCalledTimes(1)
+  expect(api.submitWikiDraft).toHaveBeenCalledTimes(1)
+})
+
+it.each(['entry', 'submit'])('서버 초안 충돌(%s)은 복구 경로를 제공한다', async (step) => {
+  const target = step === 'entry' ? api.createWikiCharacterEntry : api.submitWikiDraft
+  target.mockRejectedValueOnce({ response: { status: 412 } })
+  await expect(submitPersonDraft(input)).rejects.toMatchObject({
+    code: 'SUBMISSION_RECOVERY_REQUIRED',
+  })
+})
+
+it('탭 간 잠금이 없는 환경에서는 요청을 보내지 않는다', async () => {
+  vi.stubGlobal('navigator', {})
+  await expect(submitPersonDraft(input)).rejects.toThrow('동시 제출')
+  expect(api.createWikiDraft).not.toHaveBeenCalled()
 })

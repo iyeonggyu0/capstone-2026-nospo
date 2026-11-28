@@ -7,6 +7,7 @@ import {
   uploadWikiDraftAsset,
 } from './wikiDrafts'
 import {
+  deleteSubmissionJournal,
   getPersonImage,
   getSubmissionJournal,
   saveSubmissionJournal,
@@ -28,8 +29,34 @@ const profilePayload = (profile, fallbackName, imageAssetId, position, unit) => 
 const recoveryError = (message) =>
   Object.assign(new Error(message), { code: 'SUBMISSION_RECOVERY_REQUIRED' })
 
-/** 확인된 저장 단계와 제출 멱등 키를 보존하고 미확인 비멱등 요청은 자동 재전송하지 않는다. */
-export const submitPersonDraft = async ({
+/** 같은 브라우저의 다른 탭도 같은 초안을 동시에 처리하지 못하게 한다. */
+const withSubmissionLock = async (journalKey, action) => {
+  if (!navigator.locks?.request)
+    throw new Error(
+      '이 브라우저에서는 안전한 동시 제출을 지원하지 않아요. 최신 브라우저를 사용해 주세요.',
+    )
+  return navigator.locks.request(
+    `nospo:wiki-submission:${journalKey}`,
+    { ifAvailable: true },
+    (lock) => {
+      if (!lock)
+        throw new Error('다른 탭에서 이 도서를 제출하고 있어요. 완료 후 다시 시도해 주세요.')
+      return action()
+    },
+  )
+}
+
+/** 제출 기록 초기화도 다른 탭의 제출과 동시에 실행되지 않게 한다. */
+export const resetPersonSubmission = (journalKey) =>
+  withSubmissionLock(journalKey, async () => {
+    await deleteSubmissionJournal(journalKey)
+  })
+
+/** 탭 간 중복 실행을 막고 확인된 저장 단계와 제출 멱등 키를 보존한다. */
+export const submitPersonDraft = (input) =>
+  withSubmissionLock(input.journalKey, () => submitLockedPersonDraft(input))
+
+const submitLockedPersonDraft = async ({
   journalKey,
   bookId,
   mode,
@@ -53,6 +80,8 @@ export const submitPersonDraft = async ({
     }),
   })
   let journal = await getSubmissionJournal(journalKey)
+  if (journal && journal.fingerprint !== fingerprint && journal.steps?.submit && !journal.pending)
+    journal = null
   if (
     journal &&
     journal.fingerprint !== fingerprint &&
@@ -108,6 +137,11 @@ export const submitPersonDraft = async ({
     try {
       result = await action()
     } catch (error) {
+      if (error.response?.status === 412) {
+        throw recoveryError(
+          '서버 초안이 다른 곳에서 변경됐어요. 기존 초안과 제출 내역을 확인한 뒤 새 초안을 시작해 주세요.',
+        )
+      }
       if (
         !retryable &&
         error.response?.status >= 400 &&

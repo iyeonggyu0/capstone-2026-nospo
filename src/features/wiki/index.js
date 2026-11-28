@@ -53,4 +53,4 @@ export {
 } from './api/wikiDrafts'
 export { WikiEmptyStateDialog } from './components/WikiEmptyStateDialog'
 export { WikiCharacterImagePicker } from './components/WikiCharacterImagePicker'
-export { submitPersonDraft } from './api/submitPersonDraft'
+export { resetPersonSubmission, submitPersonDraft } from './api/submitPersonDraft'
