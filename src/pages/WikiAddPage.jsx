@@ -45,7 +45,7 @@ const WikiAddPage = () => {
   )
   const [positionDialogOpen, setPositionDialogOpen] = useState(!location.state?.positionConfirmed)
   const [people, setPeople] = useState(() =>
-    mode === 'UPDATE' && import.meta.env.DEV && import.meta.env.VITE_WIKI_API_MODE !== 'api'
+    mode === 'UPDATE' && import.meta.env.DEV && import.meta.env.VITE_WIKI_API_MODE === 'mock'
       ? previewUpdatePeople
       : [],
   )

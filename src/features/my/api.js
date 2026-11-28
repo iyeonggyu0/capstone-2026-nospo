@@ -5,6 +5,13 @@ export const myApi = {
   member: async (signal) => (await apiClient.get('/v1/me', { signal })).data.data,
   updateNickname: async (nickname) =>
     (await apiClient.patch('/v1/me/nickname', { nickname })).data.data,
+  changePassword: async (currentPassword, newPassword) => {
+    await apiClient.patch(
+      '/v1/me/password',
+      { currentPassword, newPassword },
+      { _skipAuthRefresh: true },
+    )
+  },
   reauthenticate: async (password) =>
     (
       await apiClient.post(

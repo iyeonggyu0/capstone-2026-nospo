@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react'
 /** 개발 서버에서 브라우저 요청을 백엔드 API로 전달하도록 Vite를 설정한다. */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const developmentApiUrl = env.VITE_API_DEVELOPMENT_URL || 'http://localhost:8080'
+  const developmentApiUrl = env.VITE_API_DEVELOPMENT_URL || 'https://nospo.syu-likelion.org'
 
   return {
     plugins: [react(), tailwindcss()],

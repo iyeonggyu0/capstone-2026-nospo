@@ -293,7 +293,12 @@ const WikiRegisterPersonPage = () => {
   }, [bookId, mode])
 
   useEffect(() => {
-    if (import.meta.env.VITE_WIKI_API_MODE !== 'api' || !bookId || mode !== 'UPDATE') return
+    if (
+      (import.meta.env.DEV && import.meta.env.VITE_WIKI_API_MODE === 'mock') ||
+      !bookId ||
+      mode !== 'UPDATE'
+    )
+      return
     let active = true
     getWikiOrganizations({ bookId, positionValue, limit: 100 })
       .then((page) => {
@@ -461,7 +466,7 @@ const WikiRegisterPersonPage = () => {
 
   const submitForReview = async () => {
     if (isSubmitting) return
-    const mockMode = import.meta.env.VITE_WIKI_API_MODE !== 'api'
+    const mockMode = import.meta.env.DEV && import.meta.env.VITE_WIKI_API_MODE === 'mock'
     if ((!bookId && (!mockMode || !import.meta.env.DEV)) || people.length === 0) {
       setNotice('도서 정보와 인물을 확인해 주세요.')
       return

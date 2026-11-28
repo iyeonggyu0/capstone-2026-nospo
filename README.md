@@ -139,14 +139,14 @@ Axios는 개발 모드에서 `/api` 요청을 Vite 프록시로 전달하며, �
 
 ```bash
 # 개발·임시 백엔드 주소
-VITE_API_DEVELOPMENT_URL=http://localhost:8080
+VITE_API_DEVELOPMENT_URL=https://nospo.syu-likelion.org
 
 # 배포 백엔드 주소
-VITE_API_PRODUCTION_URL=https://api.example.com
+VITE_API_PRODUCTION_URL=https://nospo.syu-likelion.org
 ```
 
 - 개발 서버에서는 브라우저가 `/api/*`로 요청하고 Vite가 `VITE_API_DEVELOPMENT_URL`로 전달한다.
-- 프로덕션 빌드에서는 `VITE_API_PRODUCTION_URL`을 사용한다. 값이 없으면 같은 도메인의 `/api`를 사용한다.
+- 프로덕션 빌드에서는 `VITE_API_PRODUCTION_URL`에 서버 주소를 설정한다. `/api`는 자동으로 붙으며, 값이 없으면 같은 도메인의 `/api`를 사용한다.
 - `.env.*` 파일은 Git에 포함하지 않는다. 배포 주소는 Vercel 환경 변수에도 `VITE_API_PRODUCTION_URL`로 등록한다.
 
 ## 스타일·UI·접근성 규칙
