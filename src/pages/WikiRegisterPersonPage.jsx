@@ -825,7 +825,8 @@ const WikiRegisterPersonPage = () => {
                       onClick={() => setActivePersonId(person.id)}
                       type="button"
                     >
-                      {person.imageUrl ? (
+                      {person.imageUrl &&
+                      Number(person.imageRevealAt ?? person.firstRevealAt) <= positionValue ? (
                         <img
                           alt=""
                           className="size-10 rounded-full object-cover"
@@ -881,7 +882,12 @@ const WikiRegisterPersonPage = () => {
                 <div className="flex items-start gap-3">
                   <WikiCharacterImagePicker
                     key={activePerson.id}
-                    imageUrl={activePerson.imageUrl}
+                    imageUrl={
+                      Number(activePerson.imageRevealAt ?? activePerson.firstRevealAt) <=
+                      positionValue
+                        ? activePerson.imageUrl
+                        : ''
+                    }
                     onFileSelected={async (file) => {
                       if (imageSaving.current) return
                       imageSaving.current = true
@@ -907,7 +913,7 @@ const WikiRegisterPersonPage = () => {
                                   imageKey,
                                   imageUrl,
                                   imageVersion,
-                                  imageRevealAt: item.imageRevealAt ?? item.firstRevealAt,
+                                  imageRevealAt: positionValue,
                                 }
                               : item,
                           ),

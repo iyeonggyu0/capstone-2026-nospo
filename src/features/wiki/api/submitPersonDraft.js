@@ -114,6 +114,15 @@ const submitLockedPersonDraft = async ({
   const positionValue = typeof position === 'object' ? position.value : position
   const relations = resolveRelations(people, positionValue)
   for (const person of people) {
+    if (person.imageKey || person.imageAssetId) {
+      const revealAt = Number(person.imageRevealAt ?? person.firstRevealAt)
+      if (
+        !Number.isInteger(revealAt) ||
+        revealAt < Number(person.firstRevealAt) ||
+        revealAt > positionValue
+      )
+        throw new Error(`${person.name}의 이미지 공개 지점을 확인해 주세요.`)
+    }
     for (const [type, entries] of [
       ['EVENT', person.entries ?? []],
       ['ABILITY', person.abilities ?? []],
@@ -123,6 +132,7 @@ const submitLockedPersonDraft = async ({
     }
   }
   const fingerprint = JSON.stringify({
+    schemaVersion: 2,
     bookId,
     mode,
     position,
@@ -154,6 +164,7 @@ const submitLockedPersonDraft = async ({
       'positionUnit',
       'wikiId',
       'baseWikiVersion',
+      'schemaVersion',
     ].every((key) => JSON.stringify(old[key]) === JSON.stringify(current[key]))
     if (sameDraft) {
       journal.fingerprint = fingerprint
@@ -256,6 +267,16 @@ const submitLockedPersonDraft = async ({
     const profiles = person.profiles?.length
       ? [...person.profiles].sort((a, b) => Number(a.revealAt) - Number(b.revealAt))
       : [{ ...person, revealAt: person.firstRevealAt }]
+    const imageRevealAt = Number(person.imageRevealAt ?? person.firstRevealAt)
+    if (imageAssetId && !profiles.some((profile) => Number(profile.revealAt) === imageRevealAt)) {
+      const previous = [...profiles]
+        .reverse()
+        .find((profile) => Number(profile.revealAt) < imageRevealAt)
+      if (previous) {
+        profiles.push({ ...previous, revealAt: imageRevealAt })
+        profiles.sort((a, b) => Number(a.revealAt) - Number(b.revealAt))
+      }
+    }
     const first = profiles[0]
     const character = await run(`character:${index}`, () =>
       createWikiCharacter({
@@ -265,7 +286,7 @@ const submitLockedPersonDraft = async ({
         profile: profilePayload(
           { ...first, revealAt: first.revealAt ?? person.firstRevealAt },
           person.name,
-          imageAssetId,
+          Number(first.revealAt) >= imageRevealAt ? imageAssetId : null,
           positionValue,
           positionUnit,
         ),
@@ -283,7 +304,7 @@ const submitLockedPersonDraft = async ({
           profile: profilePayload(
             profile,
             person.name,
-            profile.imageAssetId ?? imageAssetId,
+            Number(profile.revealAt) >= imageRevealAt ? imageAssetId : null,
             positionValue,
             positionUnit,
           ),

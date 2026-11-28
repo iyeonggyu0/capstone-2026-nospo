@@ -126,7 +126,8 @@ const WikiAddPage = () => {
         onClick={() => goRegister(person.id)}
         type="button"
       >
-        {person.imageUrl ? (
+        {person.imageUrl &&
+        Number(person.imageRevealAt ?? person.firstRevealAt) <= positionValue ? (
           <img alt="" className="size-10 rounded-full object-cover" src={person.imageUrl} />
         ) : (
           <span aria-hidden="true" className="size-10 rounded-full bg-teal-strong" />

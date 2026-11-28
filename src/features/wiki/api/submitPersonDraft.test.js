@@ -145,6 +145,33 @@ it('업로드된 이미지를 바꿨다면 오래된 이미지를 재사용하�
   expect(api.submitWikiDraft).not.toHaveBeenCalled()
 })
 
+it('이미지는 선택한 지점부터 공개하고 직전 프로필의 내용을 유지한다', async () => {
+  storage.getPersonImage.mockResolvedValue(new Blob(['image']))
+  api.uploadWikiDraftAsset.mockResolvedValue({ data: { assetId: 'image' }, etag: '"2"' })
+  api.createWikiCharacterProfile.mockResolvedValue({ data: {}, etag: '"3"' })
+  await submitPersonDraft({
+    ...input,
+    people: [
+      {
+        ...input.people[0],
+        imageKey: 'image',
+        imageRevealAt: 10,
+        profiles: [
+          { name: '인물', revealAt: 2, description: '처음' },
+          { name: '인물', revealAt: 8, description: '변경' },
+        ],
+      },
+    ],
+  })
+  expect(api.createWikiCharacter.mock.calls[0][0].profile.imageAssetId).toBeNull()
+  expect(api.createWikiCharacterProfile.mock.calls[0][0].profile.imageAssetId).toBeNull()
+  expect(api.createWikiCharacterProfile.mock.calls[1][0].profile).toMatchObject({
+    description: '변경',
+    imageAssetId: 'image',
+    revealAt: { unit: 'PAGE', value: 10 },
+  })
+})
+
 it('동시 제출과 기록 초기화는 같은 도서 잠금을 공유한다', async () => {
   let finish
   api.createWikiDraft.mockReturnValueOnce(
