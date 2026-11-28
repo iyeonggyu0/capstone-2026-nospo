@@ -50,7 +50,7 @@ it('uploadWikiDraftAsset는 Content-Type을 수동 지정하지 않고 If-Match 
   const [url, body, config] = apiClient.post.mock.calls[0]
   expect(url).toBe('/v1/wiki/drafts/draft-1/assets')
   expect(body).toBeInstanceOf(FormData)
-  expect(config).toEqual({ headers: { 'If-Match': 'W/"1"' } })
+  expect(config).toEqual({ headers: { 'If-Match': 'W/"1"', 'Content-Type': undefined } })
 })
 
 it('submitWikiDraft는 If-Match와 Idempotency-Key 헤더를 포함해 제출한다', async () => {

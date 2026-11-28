@@ -25,6 +25,9 @@ const profilePayload = (profile, fallbackName, imageAssetId, position, unit) => 
   revealAt: apiPosition(profile.revealAt, position, unit),
 })
 
+const recoveryError = (message) =>
+  Object.assign(new Error(message), { code: 'SUBMISSION_RECOVERY_REQUIRED' })
+
 /** 확인된 저장 단계와 제출 멱등 키를 보존하고 미확인 비멱등 요청은 자동 재전송하지 않는다. */
 export const submitPersonDraft = async ({
   journalKey,
@@ -54,12 +57,34 @@ export const submitPersonDraft = async ({
     journal &&
     journal.fingerprint !== fingerprint &&
     !journal.pending &&
+    Object.keys(journal.steps).length === 1 &&
+    journal.steps.draft
+  ) {
+    const old = JSON.parse(journal.fingerprint)
+    const current = JSON.parse(fingerprint)
+    const sameDraft = [
+      'bookId',
+      'mode',
+      'position',
+      'positionUnit',
+      'wikiId',
+      'baseWikiVersion',
+    ].every((key) => JSON.stringify(old[key]) === JSON.stringify(current[key]))
+    if (sameDraft) {
+      journal.fingerprint = fingerprint
+      await saveSubmissionJournal(journalKey, journal)
+    }
+  }
+  if (
+    journal &&
+    journal.fingerprint !== fingerprint &&
+    !journal.pending &&
     Object.keys(journal.steps).length === 0
   )
     journal = null
   if (journal && journal.fingerprint !== fingerprint)
-    throw new Error(
-      '이전 제출이 완료되지 않아 내용을 변경해 다시 제출할 수 없어요. 내 위키 초안과 제출 내역을 먼저 확인해 주세요.',
+    throw recoveryError(
+      '작성 내용이 이전 제출과 달라요. 기존 초안과 제출 내역을 확인한 뒤 새 초안으로 제출할 수 있어요.',
     )
   if (!journal)
     journal = {
@@ -73,8 +98,8 @@ export const submitPersonDraft = async ({
   const run = async (key, action, retryable = false) => {
     if (Object.hasOwn(journal.steps, key)) return journal.steps[key]
     if (journal.pending && (journal.pending !== key || !retryable)) {
-      throw new Error(
-        '이전 저장의 처리 결과를 확인할 수 없어요. 중복 생성을 막기 위해 내 위키 초안과 제출 내역을 확인해 주세요.',
+      throw recoveryError(
+        '이전 저장의 처리 결과를 확인할 수 없어요. 기존 초안과 제출 내역을 확인한 뒤 새 초안으로 제출할 수 있어요.',
       )
     }
     journal.pending = key
@@ -92,10 +117,18 @@ export const submitPersonDraft = async ({
         journal.pending = null
         await persist()
       }
+      if (
+        !retryable &&
+        (!error.response || error.response.status >= 500 || error.response.status === 408)
+      ) {
+        throw recoveryError(
+          '저장 결과를 확인할 수 없어요. 기존 초안과 제출 내역을 먼저 확인해 주세요.',
+        )
+      }
       throw error
     }
     if (key !== 'submit' && !result.etag)
-      throw new Error('저장 결과의 버전을 확인할 수 없어요. 내 위키 초안을 확인해 주세요.')
+      throw recoveryError('저장 결과의 버전을 확인할 수 없어요. 내 위키 초안을 확인해 주세요.')
     if (result.etag) journal.etag = result.etag
     journal.steps[key] = result.data ?? result
     journal.pending = null
@@ -112,7 +145,7 @@ export const submitPersonDraft = async ({
     }),
   )
   const draftId = created.draftId ?? created.id
-  if (!draftId) throw new Error('초안 ID를 확인할 수 없어요. 내 위키 초안을 확인해 주세요.')
+  if (!draftId) throw recoveryError('초안 ID를 확인할 수 없어요. 내 위키 초안을 확인해 주세요.')
   const positionValue = typeof position === 'object' ? position.value : position
   for (const [index, person] of people.entries()) {
     let imageAssetId = person.imageAssetId ?? null
@@ -129,7 +162,7 @@ export const submitPersonDraft = async ({
       })
       imageAssetId = uploaded.assetId ?? uploaded.id
       if (!imageAssetId)
-        throw new Error('이미지 ID를 확인할 수 없어요. 내 위키 초안을 확인해 주세요.')
+        throw recoveryError('이미지 ID를 확인할 수 없어요. 내 위키 초안을 확인해 주세요.')
     }
     const profiles = person.profiles?.length
       ? [...person.profiles].sort((a, b) => Number(a.revealAt) - Number(b.revealAt))
@@ -150,7 +183,8 @@ export const submitPersonDraft = async ({
       }),
     )
     const characterId = character.entityId ?? character.characterId
-    if (!characterId) throw new Error('인물 ID를 확인할 수 없어요. 내 위키 초안을 확인해 주세요.')
+    if (!characterId)
+      throw recoveryError('인물 ID를 확인할 수 없어요. 내 위키 초안을 확인해 주세요.')
     for (const [profileIndex, profile] of profiles.slice(1).entries()) {
       await run(`profile:${index}:${profileIndex}`, () =>
         createWikiCharacterProfile({

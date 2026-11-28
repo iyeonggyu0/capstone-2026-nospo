@@ -70,7 +70,9 @@ it('확인된 단계는 재실행하지 않고 성별과 성향을 각각 보존
 
 it('결과를 모르는 인물 생성은 재전송하지 않으며 제출 요청은 같은 키로 재시도한다', async () => {
   api.createWikiCharacter.mockRejectedValueOnce(new Error('연결 끊김'))
-  await expect(submitPersonDraft(input)).rejects.toThrow('연결 끊김')
+  await expect(submitPersonDraft(input)).rejects.toMatchObject({
+    code: 'SUBMISSION_RECOVERY_REQUIRED',
+  })
   await expect(submitPersonDraft(input)).rejects.toThrow('처리 결과를 확인할 수 없어요')
   expect(api.createWikiCharacter).toHaveBeenCalledTimes(1)
   journal = undefined
@@ -80,4 +82,30 @@ it('결과를 모르는 인물 생성은 재전송하지 않으며 제출 요청
   expect(api.submitWikiDraft.mock.calls[0][0].idempotencyKey).toBe(
     api.submitWikiDraft.mock.calls[1][0].idempotencyKey,
   )
+})
+
+it('인물 저장 거절 뒤 수정한 내용을 기존 빈 초안에 다시 저장한다', async () => {
+  api.createWikiCharacter.mockRejectedValueOnce({ response: { status: 422 } })
+  await expect(submitPersonDraft(input)).rejects.toMatchObject({ response: { status: 422 } })
+  const corrected = { ...input, people: [{ ...input.people[0], name: '수정된 이름' }] }
+  await submitPersonDraft(corrected)
+  expect(api.createWikiDraft).toHaveBeenCalledTimes(1)
+  expect(api.createWikiCharacter.mock.calls[1][0].profile.name).toBe('수정된 이름')
+})
+
+it('업로드된 이미지를 바꿨다면 오래된 이미지를 재사용하지 않고 복구를 요청한다', async () => {
+  const original = {
+    ...input,
+    people: [{ ...input.people[0], imageKey: 'image', imageVersion: 'first' }],
+  }
+  storage.getPersonImage.mockResolvedValue(new Blob(['first']))
+  api.uploadWikiDraftAsset.mockResolvedValue({ data: { assetId: 'old-image' }, etag: '"2"' })
+  api.createWikiCharacter.mockRejectedValueOnce({ response: { status: 422 } })
+  await expect(submitPersonDraft(original)).rejects.toMatchObject({ response: { status: 422 } })
+  const replaced = { ...original, people: [{ ...original.people[0], imageVersion: 'second' }] }
+  await expect(submitPersonDraft(replaced)).rejects.toMatchObject({
+    code: 'SUBMISSION_RECOVERY_REQUIRED',
+  })
+  expect(api.uploadWikiDraftAsset).toHaveBeenCalledTimes(1)
+  expect(api.submitWikiDraft).not.toHaveBeenCalled()
 })

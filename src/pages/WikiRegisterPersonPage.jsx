@@ -230,6 +230,8 @@ const WikiRegisterPersonPage = () => {
   ])
   const [showAbilities, setShowAbilities] = useState(true)
   const [notice, setNotice] = useState('')
+  const [recoveryRequired, setRecoveryRequired] = useState(false)
+  const [confirmRestart, setConfirmRestart] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
@@ -504,6 +506,8 @@ const WikiRegisterPersonPage = () => {
       return
     }
     setIsSubmitting(true)
+    setRecoveryRequired(false)
+    setConfirmRestart(false)
     try {
       if (mockMode) {
         await storePersonDraft(getPersonDraftKey(bookId, mode), {
@@ -545,8 +549,9 @@ const WikiRegisterPersonPage = () => {
           : '검수 제출이 완료됐어요.',
       )
     } catch (error) {
+      if (error.code === 'SUBMISSION_RECOVERY_REQUIRED') setRecoveryRequired(true)
       setNotice(
-        error.response?.data?.message ||
+        error.response?.data?.error?.message ||
           error.message ||
           '검수 제출에 실패했어요. 다시 시도해 주세요.',
       )
@@ -854,6 +859,7 @@ const WikiRegisterPersonPage = () => {
                         previewUrls.current.delete(activePerson.imageUrl)
                       }
                       const imageUrl = URL.createObjectURL(file)
+                      const imageVersion = crypto.randomUUID()
                       previewUrls.current.add(imageUrl)
                       setPeople((items) =>
                         items.map((item) =>
@@ -862,6 +868,7 @@ const WikiRegisterPersonPage = () => {
                                 ...item,
                                 imageKey,
                                 imageUrl,
+                                imageVersion,
                                 imageRevealAt: item.imageRevealAt ?? item.firstRevealAt,
                               }
                             : item,
@@ -1283,6 +1290,80 @@ const WikiRegisterPersonPage = () => {
       </main>
 
       <footer className="sticky bottom-0 z-10 mt-auto w-full bg-surface px-5 pt-[10px] pb-[14px]">
+        {recoveryRequired && (
+          <section
+            role="alert"
+            className="mb-3 rounded-lg bg-amber-background p-3 text-label text-amber-foreground"
+          >
+            <p>
+              이전 초안이나 제출이 서버에 남아 있을 수 있어요. 내역을 확인한 뒤 새 초안을 시작해
+              주세요. 기존 서버 데이터는 삭제되지 않아요.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <a
+                href={`${ROUTES.MY}?view=drafts`}
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                내 초안 확인
+              </a>
+              <a
+                href={ROUTES.WIKI_REVIEW_LIST}
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                제출 내역 확인
+              </a>
+            </div>
+            {!confirmRestart ? (
+              <button
+                type="button"
+                className="mt-2 underline"
+                onClick={() => setConfirmRestart(true)}
+              >
+                확인 후 새 초안 시작
+              </button>
+            ) : (
+              <div className="mt-2">
+                <p>
+                  이미 제출된 내용을 다시 보내면 중복 제출될 수 있어요. 새 초안으로 다시 시작할까요?
+                </p>
+                <div className="mt-2 flex gap-3">
+                  <button
+                    type="button"
+                    className="underline"
+                    onClick={() => setConfirmRestart(false)}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    className="font-bold underline"
+                    disabled={isSubmitting}
+                    onClick={async () => {
+                      try {
+                        await deleteSubmissionJournal(
+                          `${getPersonDraftKey(bookId, mode)}:submission:${memberId}`,
+                        )
+                        setRecoveryRequired(false)
+                        setConfirmRestart(false)
+                        setNotice(
+                          '새 초안을 시작할 수 있어요. 내용을 확인하고 검수 제출을 눌러 주세요.',
+                        )
+                      } catch {
+                        setNotice('이전 제출 기록을 정리하지 못했어요. 다시 시도해 주세요.')
+                      }
+                    }}
+                  >
+                    새 초안 시작
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
         <Button
           className="rounded-lg font-bold"
           disabled={isSubmitting || isSubmitted}

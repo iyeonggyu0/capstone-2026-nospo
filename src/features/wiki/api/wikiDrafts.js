@@ -99,6 +99,7 @@ export const uploadWikiDraftAsset = async ({ draftId, file, etag }) => {
   const response = await apiClient.post(`/v1/wiki/drafts/${draftId}/assets`, formData, {
     headers: {
       'If-Match': etag,
+      'Content-Type': undefined,
     },
   })
 
