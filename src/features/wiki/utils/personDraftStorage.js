@@ -2,6 +2,7 @@ const DATABASE_NAME = 'nospo-wiki-drafts'
 const DATABASE_VERSION = 1
 const DRAFT_STORE = 'person-drafts'
 const IMAGE_STORE = 'person-images'
+export const PERSON_IMAGE_LOCK = 'nospo:wiki-person-images'
 
 const openDatabase = () =>
   new Promise((resolve, reject) => {
@@ -121,6 +122,54 @@ export const deletePersonDraftIfUnchanged = async (key, submitted) => {
       database.close()
       reject(tx.error ?? new Error('초안 정리 취소'))
     }
+  })
+}
+
+/** 열린 편집기가 없을 때 한 트랜잭션에서 저장된 초안이 참조하지 않는 이미지만 정리한다. */
+export const collectUnusedPersonImages = async () => {
+  if (!navigator.locks?.request) return
+  return navigator.locks.request(PERSON_IMAGE_LOCK, { ifAvailable: true }, async (lock) => {
+    if (!lock) return
+    const database = await openDatabase()
+    return new Promise((resolve, reject) => {
+      const tx = database.transaction([DRAFT_STORE, IMAGE_STORE], 'readwrite')
+      const drafts = tx.objectStore(DRAFT_STORE).getAll()
+      const images = tx.objectStore(IMAGE_STORE)
+      drafts.onsuccess = () => {
+        const referenced = new Set(
+          drafts.result.flatMap((draft) => {
+            const people = Array.isArray(draft) ? draft : draft?.people
+            return Array.isArray(people)
+              ? people.map((person) => person.imageKey).filter(Boolean)
+              : []
+          }),
+        )
+        const cursor = images.openCursor()
+        cursor.onsuccess = () => {
+          const item = cursor.result
+          if (!item) return
+          if (
+            typeof item.key === 'string' &&
+            item.key.startsWith('nospo:wiki-person-draft:') &&
+            !referenced.has(item.key)
+          )
+            item.delete()
+          item.continue()
+        }
+      }
+      tx.oncomplete = () => {
+        database.close()
+        resolve()
+      }
+      tx.onerror = () => {
+        database.close()
+        reject(tx.error)
+      }
+      tx.onabort = () => {
+        database.close()
+        reject(tx.error ?? new Error('이미지 정리 취소'))
+      }
+    })
   })
 }
 

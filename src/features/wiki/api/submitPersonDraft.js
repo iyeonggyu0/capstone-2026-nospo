@@ -30,6 +30,18 @@ const profilePayload = (profile, fallbackName, imageAssetId, position, unit) => 
 const recoveryError = (message) =>
   Object.assign(new Error(message), { code: 'SUBMISSION_RECOVERY_REQUIRED' })
 
+/** 한 줄 행적·기타는 입력한 내용을 제목과 본문으로 보내고 능력은 설명을 필수로 검증한다. */
+const normalizeEntry = (entry, type) => {
+  const title = entry.title?.trim() ?? ''
+  const content =
+    type === 'ABILITY' ? (entry.content?.trim() ?? '') : entry.content?.trim() || title
+  if (!title || Array.from(title).length > 200 || !content || Array.from(content).length > 10000)
+    throw new Error(
+      '행적·능력·기타 항목의 내용과 길이를 확인해 주세요. 제목은 200자 이내이며 능력 설명은 필수입니다.',
+    )
+  return { title, content }
+}
+
 /** 서버 초안에 존재하는 인물만 관계 대상으로 사용한다. */
 const resolveRelations = (people, positionValue) => {
   const types = { 우호: 'FRIENDLY', 대립: 'HOSTILE', 중립: 'NEUTRAL' }
@@ -101,6 +113,15 @@ const submitLockedPersonDraft = async ({
 }) => {
   const positionValue = typeof position === 'object' ? position.value : position
   const relations = resolveRelations(people, positionValue)
+  for (const person of people) {
+    for (const [type, entries] of [
+      ['EVENT', person.entries ?? []],
+      ['ABILITY', person.abilities ?? []],
+      ['OTHER', person.otherEntries ?? []],
+    ]) {
+      for (const entry of entries) normalizeEntry(entry, type)
+    }
+  }
   const fingerprint = JSON.stringify({
     bookId,
     mode,
@@ -283,8 +304,7 @@ const submitLockedPersonDraft = async ({
             etag: journal.etag,
             entry: {
               type,
-              title: entry.title,
-              content: entry.content ?? '',
+              ...normalizeEntry(entry, type),
               revealAt: apiPosition(revealAt, positionValue, positionUnit),
               sourcePosition: apiPosition(revealAt, positionValue, positionUnit),
             },

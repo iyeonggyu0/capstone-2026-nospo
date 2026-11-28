@@ -55,3 +55,4 @@ export {
 export { WikiEmptyStateDialog } from './components/WikiEmptyStateDialog'
 export { WikiCharacterImagePicker } from './components/WikiCharacterImagePicker'
 export { resetPersonSubmission, submitPersonDraft } from './api/submitPersonDraft'
+export { usePersonDraftLease } from './hooks/usePersonDraftLease'

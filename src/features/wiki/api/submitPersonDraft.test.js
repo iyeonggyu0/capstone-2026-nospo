@@ -81,7 +81,26 @@ it('확인된 단계는 재실행하지 않고 성별과 성향을 각각 보존
   expect(api.createWikiDraft).toHaveBeenCalledTimes(1)
   expect(api.createWikiCharacter).toHaveBeenCalledTimes(1)
   expect(api.createWikiCharacterEntry).toHaveBeenCalledTimes(2)
+  expect(api.createWikiCharacterEntry.mock.calls[1][0].entry).toMatchObject({
+    type: 'EVENT',
+    title: '행적',
+    content: '행적',
+  })
   expect(api.submitWikiDraft).toHaveBeenCalledTimes(1)
+})
+
+it('능력 설명이 없거나 항목 제목이 200자를 넘으면 서버 초안을 만들지 않는다', async () => {
+  const ability = {
+    ...input,
+    people: [{ ...input.people[0], abilities: [{ title: '능력', content: ' ' }] }],
+  }
+  await expect(submitPersonDraft(ability)).rejects.toThrow('능력 설명')
+  const longTitle = {
+    ...input,
+    people: [{ ...input.people[0], entries: [{ title: '가'.repeat(201) }] }],
+  }
+  await expect(submitPersonDraft(longTitle)).rejects.toThrow('200자')
+  expect(api.createWikiDraft).not.toHaveBeenCalled()
 })
 
 it('결과를 모르는 인물 생성은 재전송하지 않으며 제출 요청은 같은 키로 재시도한다', async () => {

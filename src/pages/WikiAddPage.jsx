@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/common-ui'
 import { ROUTES } from '@/constants/routes'
-import { getPersonDraftKey, restorePersonDraft } from '@/features/wiki'
+import { getPersonDraftKey, restorePersonDraft, usePersonDraftLease } from '@/features/wiki'
 import bookCoverPreview from '@/assets/images/wiki-book-cover-preview.png'
 
 const previewUpdatePeople = [
@@ -24,6 +24,7 @@ const previewUpdatePeople = [
 const WikiAddPage = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const leaseReady = usePersonDraftLease()
   const book = location.state?.book ?? (import.meta.env.DEV ? { title: '애주가의 절주 일기' } : {})
   const bookId = location.state?.bookId ?? book.id
   const mode = location.state?.mode ?? 'CREATE'
@@ -57,6 +58,7 @@ const WikiAddPage = () => {
     Number(positionUnit === 'PAGE' ? book.totalPages : book.totalEpisodes) || undefined
 
   useEffect(() => {
+    if (!leaseReady) return
     let active = true
     restorePersonDraft(getPersonDraftKey(bookId, mode))
       .then((draft) => {
@@ -76,7 +78,7 @@ const WikiAddPage = () => {
     return () => {
       active = false
     }
-  }, [bookId, mode])
+  }, [bookId, mode, leaseReady])
 
   const goRegister = (personId, createPerson = false) =>
     navigate(mode === 'CREATE' ? ROUTES.WIKI_ADD_PERSON : ROUTES.WIKI_REGISTER_PERSON, {
@@ -141,7 +143,11 @@ const WikiAddPage = () => {
   )
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-[390px] flex-col bg-surface pt-5">
+    <div
+      inert={!leaseReady}
+      aria-busy={!leaseReady}
+      className="mx-auto flex min-h-full w-full max-w-[390px] flex-col bg-surface pt-5"
+    >
       <header className="flex h-[22px] items-center justify-between px-5">
         <Logo
           className="gap-1 [&>span]:text-label [&>span]:leading-[22px]"

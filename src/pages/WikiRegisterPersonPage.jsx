@@ -14,6 +14,7 @@ import {
   storePersonDraft,
   storePersonImage,
   submitPersonDraft,
+  usePersonDraftLease,
   WikiCharacterImagePicker,
 } from '@/features/wiki'
 import chevronLeft from '@/assets/icons/header/chevron-left.svg'
@@ -191,6 +192,7 @@ const relationTypes = ['우호', '대립', '중립']
 const WikiRegisterPersonPage = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const leaseReady = usePersonDraftLease()
   const params = useMemo(() => new URLSearchParams(location.search), [location.search])
   const book = useMemo(() => location.state?.book ?? {}, [location.state?.book])
   const bookId = location.state?.bookId ?? params.get('bookId')
@@ -236,7 +238,7 @@ const WikiRegisterPersonPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isImageSaving, setIsImageSaving] = useState(false)
   const imageSaving = useRef(false)
-  const blocker = useBlocker(isSubmitting)
+  const blocker = useBlocker(isSubmitting || isImageSaving)
   const [isDirty, setIsDirty] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [entryDraft, setEntryDraft] = useState(null)
@@ -248,14 +250,14 @@ const WikiRegisterPersonPage = () => {
   }, [blocker])
 
   useEffect(() => {
-    if (!isSubmitting) return
+    if (!isSubmitting && !isImageSaving) return
     const preventExit = (event) => {
       event.preventDefault()
       event.returnValue = ''
     }
     window.addEventListener('beforeunload', preventExit)
     return () => window.removeEventListener('beforeunload', preventExit)
-  }, [isSubmitting])
+  }, [isSubmitting, isImageSaving])
 
   useEffect(() => {
     const requestedPersonId = location.state?.personId
@@ -274,6 +276,7 @@ const WikiRegisterPersonPage = () => {
   ])
 
   useEffect(() => {
+    if (!leaseReady) return
     let cancelled = false
     const objectUrls = previewUrls.current
     restorePersonDraft(getPersonDraftKey(bookId, mode))
@@ -302,7 +305,7 @@ const WikiRegisterPersonPage = () => {
       objectUrls.forEach((url) => URL.revokeObjectURL(url))
       objectUrls.clear()
     }
-  }, [bookId, mode])
+  }, [bookId, mode, leaseReady])
 
   useEffect(() => {
     if (
@@ -477,7 +480,7 @@ const WikiRegisterPersonPage = () => {
   }
 
   const submitForReview = async () => {
-    if (isSubmitting || imageSaving.current) return
+    if (!leaseReady || isSubmitting || imageSaving.current) return
     const mockMode = import.meta.env.DEV && import.meta.env.VITE_WIKI_API_MODE === 'mock'
     if ((!bookId && (!mockMode || !import.meta.env.DEV)) || people.length === 0) {
       setNotice('도서 정보와 인물을 확인해 주세요.')
@@ -597,6 +600,10 @@ const WikiRegisterPersonPage = () => {
   const saveEntry = (event) => {
     event.preventDefault()
     if (!entryDraft?.title.trim() || !activePerson) return
+    if (selectedTab === 'ABILITY' && !entryDraft.content?.trim()) {
+      setNotice('능력 설명을 입력해 주세요.')
+      return
+    }
     if (Number(entryDraft.revealAt) > positionValue) {
       setNotice(`공개 지점은 읽은 지점 ${positionValue}${positionUnitLabel}보다 뒤일 수 없어요.`)
       return
@@ -704,7 +711,8 @@ const WikiRegisterPersonPage = () => {
   return (
     <>
       <div
-        inert={isSubmitting}
+        inert={isSubmitting || !leaseReady}
+        aria-busy={!leaseReady}
         className="relative mx-auto flex min-h-full w-full max-w-[390px] flex-col bg-surface px-0 pt-5"
       >
         <header className="flex h-[22px] shrink-0 items-center justify-between px-5">
@@ -1200,7 +1208,7 @@ const WikiRegisterPersonPage = () => {
                         <input
                           autoFocus
                           className="mt-1 h-10 w-full rounded-md bg-surface px-3 text-body"
-                          maxLength={selectedTab === 'ABILITY' ? 100 : 1000}
+                          maxLength={200}
                           onChange={(event) =>
                             setEntryDraft((draft) => ({ ...draft, title: event.target.value }))
                           }
@@ -1215,6 +1223,7 @@ const WikiRegisterPersonPage = () => {
                           <textarea
                             className="mt-1 min-h-16 w-full rounded-md bg-surface p-3 text-body"
                             maxLength={5000}
+                            required
                             onChange={(event) =>
                               setEntryDraft((draft) => ({ ...draft, content: event.target.value }))
                             }
