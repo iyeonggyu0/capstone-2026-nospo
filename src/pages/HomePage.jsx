@@ -148,14 +148,12 @@ const HomePage = () => {
             }
             progressPercent={book.progressPercent}
             action={
-              <button
-                type="button"
-                disabled
-                className="h-[38px] w-full rounded-lg bg-control-neutral text-body font-medium text-text-secondary"
-                title="이어 읽기 기능 준비 중"
+              <Link
+                to={`${ROUTES.WIKI}/${encodeURIComponent(book.book.bookId)}`}
+                className="flex h-[38px] w-full items-center justify-center rounded-lg bg-control-neutral text-body font-medium text-text-secondary"
               >
                 바로 이어 읽기
-              </button>
+              </Link>
             }
           />
         ) : (

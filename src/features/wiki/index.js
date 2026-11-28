@@ -3,7 +3,17 @@ export { GroupListContainer } from './components/GroupListContainer'
 export { GroupViewDetailContainer } from './components/GroupViewDetailContainer'
 export { GroupViewListContainer } from './components/GroupViewListContainer'
 export { ReviewProgressContainer } from './components/ReviewProgressContainer'
-export { getShelf, getSearchHistory, searchBooks } from './api'
+export {
+  addShelfBook,
+  changeShelfProgress,
+  getShelf,
+  getShelfBook,
+  getSearchHistory,
+  getVisibleWikiEntities,
+  getVisibleWikiEntity,
+  getWikiImage,
+  searchBooks,
+} from './api'
 export {
   getPersonRegisterPath,
   getReviewProgressPath,
@@ -15,8 +25,10 @@ export {
   getPersonImage,
   restorePersonDraft,
   deletePersonDraft,
+  deletePersonDraftIfUnchanged,
   storePersonDraft,
   storePersonImage,
+  deleteSubmissionJournal,
 } from './utils/personDraftStorage'
 export {
   createWikiCharacter,
@@ -42,3 +54,5 @@ export {
 } from './api/wikiDrafts'
 export { WikiEmptyStateDialog } from './components/WikiEmptyStateDialog'
 export { WikiCharacterImagePicker } from './components/WikiCharacterImagePicker'
+export { resetPersonSubmission, submitPersonDraft } from './api/submitPersonDraft'
+export { usePersonDraftLease } from './hooks/usePersonDraftLease'

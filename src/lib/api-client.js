@@ -1,8 +1,11 @@
 import axios from 'axios'
 
+const productionUrl = (import.meta.env.VITE_API_PRODUCTION_URL || '').replace(/\/+$/, '')
 const API_BASE_URL = import.meta.env.DEV
   ? '/api'
-  : import.meta.env.VITE_API_PRODUCTION_URL || '/api'
+  : productionUrl
+    ? `${productionUrl}${productionUrl.endsWith('/api') ? '' : '/api'}`
+    : '/api'
 
 /** feature의 API 요청에서 공통으로 사용하는 Axios 인스턴스다. */
 export const apiClient = axios.create({

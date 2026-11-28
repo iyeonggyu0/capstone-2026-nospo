@@ -50,6 +50,7 @@ const mockBooks = [
 const SearchBook = ({ book, preview }) => (
   <Link
     to={`${ROUTES.WIKI}/${encodeURIComponent(book.bookId)}${preview ? '?preview' : ''}`}
+    state={{ book }}
     className="flex items-center gap-3 px-4 py-3"
   >
     <div className="h-[72px] w-[54px] shrink-0 overflow-hidden rounded-lg bg-control-neutral">

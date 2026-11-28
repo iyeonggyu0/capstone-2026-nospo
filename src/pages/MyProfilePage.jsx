@@ -342,15 +342,14 @@ const MyProfilePage = () => {
               <div className="flex items-center justify-between gap-3 text-body">
                 <span>비밀번호 수정</span>
                 <Link
-                  to={`${ROUTES.AUTH_PASSWORD_RESET}?from=profile${preview ? '&preview' : ''}`}
-                  reloadDocument={preview}
+                  to={ROUTES.MY_PASSWORD}
                   className="text-label-sm font-medium text-teal-strong"
                 >
                   편집
                 </Link>
               </div>
               <p className="text-caption text-text-secondary">
-                비밀번호는 이메일 인증을 통해 재설정해요.
+                현재 비밀번호를 확인한 뒤 변경해요.
               </p>
             </div>
           )}

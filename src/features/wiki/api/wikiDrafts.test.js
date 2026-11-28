@@ -11,7 +11,41 @@ vi.mock('@/lib/api-client', () => ({
 }))
 
 import { apiClient } from '@/lib/api-client'
-import { createWikiDraft, submitWikiDraft, uploadWikiDraftAsset } from './wikiDrafts'
+import {
+  createWikiDraft,
+  createWikiRelation,
+  submitWikiDraft,
+  uploadWikiDraftAsset,
+} from './wikiDrafts'
+
+it('관계는 같은 초안의 인물 ID와 공개 지점 및 ETag로 저장한다', async () => {
+  apiClient.post.mockResolvedValue({
+    data: { data: { relationId: 'r' } },
+    headers: { etag: '"3"' },
+  })
+  const position = { unit: 'PAGE', value: 4 }
+  await createWikiRelation({
+    draftId: 'd',
+    fromId: 'a',
+    toId: 'b',
+    type: 'FRIENDLY',
+    position,
+    etag: '"2"',
+  })
+  expect(apiClient.post).toHaveBeenCalledWith(
+    '/v1/wiki/drafts/d/relations',
+    {
+      from: { type: 'CHARACTER', id: 'a' },
+      to: { type: 'CHARACTER', id: 'b' },
+      type: 'FRIENDLY',
+      description: '',
+      revealAt: position,
+      sourcePosition: position,
+      events: [],
+    },
+    { headers: { 'If-Match': '"2"' } },
+  )
+})
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -50,7 +84,7 @@ it('uploadWikiDraftAsset는 Content-Type을 수동 지정하지 않고 If-Match 
   const [url, body, config] = apiClient.post.mock.calls[0]
   expect(url).toBe('/v1/wiki/drafts/draft-1/assets')
   expect(body).toBeInstanceOf(FormData)
-  expect(config).toEqual({ headers: { 'If-Match': 'W/"1"' } })
+  expect(config).toEqual({ headers: { 'If-Match': 'W/"1"', 'Content-Type': undefined } })
 })
 
 it('submitWikiDraft는 If-Match와 Idempotency-Key 헤더를 포함해 제출한다', async () => {

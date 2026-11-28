@@ -12,11 +12,11 @@ import { authApi, authError, isAuthMock, useAuth } from '@/features/auth'
 
 /** 로그인 입력과 인증 수단을 안내한다. */
 const AuthLoginPage = () => {
-  const [notice, setNotice] = useState('')
+  const { search, state } = useLocation()
+  const [notice, setNotice] = useState(state?.message ?? '')
   const [busy, setBusy] = useState(false)
   const [errors, setErrors] = useState({})
   const navigate = useNavigate()
-  const { search } = useLocation()
   const setSession = useAuth((state) => state.setSession)
 
   const handleLogin = async (event) => {
