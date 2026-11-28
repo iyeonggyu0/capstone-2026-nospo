@@ -57,7 +57,23 @@ const WikiDetailPage = () => {
     queryFn: ({ signal }) => getShelfBook(bookId, signal),
     enabled: loggedIn,
     retry: false,
+    refetchOnWindowFocus: 'always',
   })
+  useEffect(() => {
+    if (!loggedIn) return
+    const verify = () => {
+      if (document.visibilityState !== 'visible') return
+      void queryClient.invalidateQueries({ queryKey: ['shelfBook', bookId] })
+      void queryClient.invalidateQueries({ queryKey: ['visibleWiki', bookId] })
+      void queryClient.invalidateQueries({ queryKey: ['visibleWikiDetail', bookId] })
+    }
+    window.addEventListener('focus', verify)
+    document.addEventListener('visibilitychange', verify)
+    return () => {
+      window.removeEventListener('focus', verify)
+      document.removeEventListener('visibilitychange', verify)
+    }
+  }, [bookId, loggedIn, queryClient])
   const bookQuery = useQuery({
     queryKey: ['book', bookId],
     queryFn: ({ signal }) => myApi.book(bookId, signal),
@@ -194,8 +210,11 @@ const WikiDetailPage = () => {
       {isNew && !book && (
         <p role="alert">도서 정보를 불러오지 못했어요. 검색 결과에서 다시 선택해 주세요.</p>
       )}
-      {shelf.data && wiki.isPending && <p role="status">위키 정보를 확인하고 있어요.</p>}
-      {shelf.data && wiki.isError && (
+      {shelf.data && shelf.isFetching && <p role="status">현재 진도를 확인하고 있어요.</p>}
+      {shelf.data && !shelf.isFetching && !shelf.isError && wiki.isPending && (
+        <p role="status">위키 정보를 확인하고 있어요.</p>
+      )}
+      {shelf.data && !shelf.isFetching && !shelf.isError && wiki.isError && (
         <p role="alert">
           위키 정보를 불러오지 못했어요.{' '}
           <button className="text-teal-strong" onClick={() => wiki.refetch()}>
@@ -203,19 +222,23 @@ const WikiDetailPage = () => {
           </button>
         </p>
       )}
-      {shelf.data && wiki.isSuccess && !wiki.data?.exists && (
-        <div className="flex flex-col gap-3">
-          <p>아직 등록된 위키가 없어요.</p>
-          <Link
-            to={ROUTES.WIKI_ADD_EMPTY}
-            state={{ book, bookId, position: shelf.data.currentPosition }}
-            className="rounded-lg bg-teal-strong px-4 py-3 text-center text-white"
-          >
-            위키 등록하기
-          </Link>
-        </div>
-      )}
-      {shelf.data && wiki.data?.exists && (
+      {shelf.data &&
+        !shelf.isFetching &&
+        !shelf.isError &&
+        wiki.isSuccess &&
+        !wiki.data?.exists && (
+          <div className="flex flex-col gap-3">
+            <p>아직 등록된 위키가 없어요.</p>
+            <Link
+              to={ROUTES.WIKI_ADD_EMPTY}
+              state={{ book, bookId, position: shelf.data.currentPosition }}
+              className="rounded-lg bg-teal-strong px-4 py-3 text-center text-white"
+            >
+              위키 등록하기
+            </Link>
+          </div>
+        )}
+      {shelf.data && !shelf.isFetching && !shelf.isError && wiki.data?.exists && (
         <>
           <div className="flex gap-2" aria-label="위키 유형">
             {[
@@ -245,7 +268,7 @@ const WikiDetailPage = () => {
               </button>
             </p>
           )}
-          {entities.isSuccess && (
+          {entities.isSuccess && !entities.isFetching && (
             <ul className="divide-y divide-border">
               {entities.data.pages
                 .flatMap((page) => page.items ?? [])
@@ -297,7 +320,7 @@ const WikiDetailPage = () => {
                   </button>
                 </p>
               )}
-              {detail.data && (
+              {detail.data && !detail.isFetching && !detail.isError && (
                 <>
                   <h2 className="text-title font-bold">{detail.data.name}</h2>
                   <p className="mt-2 text-body whitespace-pre-wrap">{detail.data.description}</p>

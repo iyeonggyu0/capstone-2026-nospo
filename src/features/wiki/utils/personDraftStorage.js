@@ -95,6 +95,35 @@ const stripPreviewUrls = (draft) => {
 export const storePersonDraft = (key, draft) =>
   withStore(DRAFT_STORE, 'readwrite', (store) => store.put(stripPreviewUrls(draft), key))
 
+/** 다른 탭의 초안이 바뀌지 않았을 때만 초안을 제거한다. 이미지는 다른 탭이 참조할 수 있어 보존한다. */
+export const deletePersonDraftIfUnchanged = async (key, submitted) => {
+  const database = await openDatabase()
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(DRAFT_STORE, 'readwrite')
+    const drafts = tx.objectStore(DRAFT_STORE)
+    let removed = false
+    const request = drafts.get(key)
+    request.onsuccess = () => {
+      const saved = request.result
+      if (!saved || JSON.stringify(saved) !== JSON.stringify(stripPreviewUrls(submitted))) return
+      drafts.delete(key)
+      removed = true
+    }
+    tx.oncomplete = () => {
+      database.close()
+      resolve(removed)
+    }
+    tx.onerror = () => {
+      database.close()
+      reject(tx.error)
+    }
+    tx.onabort = () => {
+      database.close()
+      reject(tx.error ?? new Error('초안 정리 취소'))
+    }
+  })
+}
+
 /** 저장하지 않기로 한 인물 초안과 초안 이미지 파일을 제거한다. */
 export const deletePersonDraft = async (key, imageKeys = []) => {
   const savedDraft = await withStore(DRAFT_STORE, 'readonly', (store) => store.get(key))

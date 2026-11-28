@@ -6,6 +6,7 @@ import { ROUTES } from '@/constants/routes'
 import { useAuth } from '@/features/auth'
 import {
   deletePersonDraft,
+  deletePersonDraftIfUnchanged,
   getPersonDraftKey,
   getWikiOrganizations,
   restorePersonDraft,
@@ -550,10 +551,11 @@ const WikiRegisterPersonPage = () => {
         baseWikiVersion: location.state?.baseWikiVersion,
       })
       try {
-        await deletePersonDraft(
-          getPersonDraftKey(bookId, mode),
-          people.map((person) => person.imageKey).filter(Boolean),
-        )
+        await deletePersonDraftIfUnchanged(getPersonDraftKey(bookId, mode), {
+          position,
+          positionUnit,
+          people,
+        })
       } catch {
         // 로컬 정리에 실패하면 제출 기록을 남겨 중복 제출을 방지한다.
       }
@@ -876,7 +878,8 @@ const WikiRegisterPersonPage = () => {
                       if (imageSaving.current) return
                       imageSaving.current = true
                       setIsImageSaving(true)
-                      const imageKey = `${getPersonDraftKey(bookId, mode)}:${activePerson.id}`
+                      const imageVersion = crypto.randomUUID()
+                      const imageKey = `${getPersonDraftKey(bookId, mode)}:${activePerson.id}:${imageVersion}`
                       try {
                         await storePersonImage(imageKey, file)
                         if (
@@ -887,7 +890,6 @@ const WikiRegisterPersonPage = () => {
                           previewUrls.current.delete(activePerson.imageUrl)
                         }
                         const imageUrl = URL.createObjectURL(file)
-                        const imageVersion = crypto.randomUUID()
                         previewUrls.current.add(imageUrl)
                         setPeople((items) =>
                           items.map((item) =>

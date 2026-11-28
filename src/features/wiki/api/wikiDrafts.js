@@ -202,6 +202,24 @@ export const createWikiAffiliation = async ({
   return getDraftResult(response)
 }
 
+/** 같은 초안에 저장한 인물 사이의 공개 관계를 추가한다. */
+export const createWikiRelation = async ({ draftId, fromId, toId, type, position, etag }) => {
+  const response = await apiClient.post(
+    `/v1/wiki/drafts/${draftId}/relations`,
+    {
+      from: { type: 'CHARACTER', id: fromId },
+      to: { type: 'CHARACTER', id: toId },
+      type,
+      description: '',
+      revealAt: position,
+      sourcePosition: position,
+      events: [],
+    },
+    { headers: { 'If-Match': etag } },
+  )
+  return getDraftResult(response)
+}
+
 /** 초안 관리 화면에서 명시적인 전체 삭제를 수행한다. */
 export const deleteWikiDraft = async ({ draftId, etag }) => {
   await apiClient.delete(`/v1/wiki/drafts/${draftId}`, {

@@ -3,6 +3,7 @@ import {
   createWikiCharacterEntry,
   createWikiCharacterProfile,
   createWikiDraft,
+  createWikiRelation,
   submitWikiDraft,
   uploadWikiDraftAsset,
 } from './wikiDrafts'
@@ -28,6 +29,38 @@ const profilePayload = (profile, fallbackName, imageAssetId, position, unit) => 
 
 const recoveryError = (message) =>
   Object.assign(new Error(message), { code: 'SUBMISSION_RECOVERY_REQUIRED' })
+
+/** 서버 초안에 존재하는 인물만 관계 대상으로 사용한다. */
+const resolveRelations = (people, positionValue) => {
+  const types = { 우호: 'FRIENDLY', 대립: 'HOSTILE', 중립: 'NEUTRAL' }
+  const result = []
+  for (const [from, person] of people.entries()) {
+    for (const [type, relations] of Object.entries(person.relations ?? {})) {
+      for (const relation of relations) {
+        const name = (typeof relation === 'string' ? relation : relation.name)?.trim()
+        const targets = people
+          .map((item, index) => ({ item, index }))
+          .filter(({ item }) => item.name?.trim() === name)
+        if (!types[type] || targets.length !== 1 || targets[0].index === from)
+          throw new Error(
+            `관계 대상 '${name || ''}'을 같은 초안의 다른 인물 한 명으로 지정해 주세요.`,
+          )
+        const revealAt = Number(
+          typeof relation === 'string' ? person.firstRevealAt : relation.revealAt,
+        )
+        if (
+          !Number.isInteger(revealAt) ||
+          revealAt <
+            Math.max(Number(person.firstRevealAt), Number(targets[0].item.firstRevealAt)) ||
+          revealAt > positionValue
+        )
+          throw new Error(`'${name}' 관계의 공개 지점을 두 인물의 등장 이후로 설정해 주세요.`)
+        result.push({ from, to: targets[0].index, type: types[type], revealAt })
+      }
+    }
+  }
+  return result
+}
 
 /** 같은 브라우저의 다른 탭도 같은 초안을 동시에 처리하지 못하게 한다. */
 const withSubmissionLock = async (journalKey, action) => {
@@ -66,6 +99,8 @@ const submitLockedPersonDraft = async ({
   wikiId,
   baseWikiVersion,
 }) => {
+  const positionValue = typeof position === 'object' ? position.value : position
+  const relations = resolveRelations(people, positionValue)
   const fingerprint = JSON.stringify({
     bookId,
     mode,
@@ -180,7 +215,6 @@ const submitLockedPersonDraft = async ({
   )
   const draftId = created.draftId ?? created.id
   if (!draftId) throw recoveryError('초안 ID를 확인할 수 없어요. 내 위키 초안을 확인해 주세요.')
-  const positionValue = typeof position === 'object' ? position.value : position
   for (const [index, person] of people.entries()) {
     let imageAssetId = person.imageAssetId ?? null
     if (person.imageKey) {
@@ -258,6 +292,22 @@ const submitLockedPersonDraft = async ({
         )
       }
     }
+  }
+  for (const [index, relation] of relations.entries()) {
+    await run(`relation:${index}`, () =>
+      createWikiRelation({
+        draftId,
+        fromId:
+          journal.steps[`character:${relation.from}`].entityId ??
+          journal.steps[`character:${relation.from}`].characterId,
+        toId:
+          journal.steps[`character:${relation.to}`].entityId ??
+          journal.steps[`character:${relation.to}`].characterId,
+        type: relation.type,
+        position: apiPosition(relation.revealAt, positionValue, positionUnit),
+        etag: journal.etag,
+      }),
+    )
   }
   const result = await run(
     'submit',

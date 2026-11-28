@@ -25,6 +25,7 @@ export {
   getPersonImage,
   restorePersonDraft,
   deletePersonDraft,
+  deletePersonDraftIfUnchanged,
   storePersonDraft,
   storePersonImage,
   deleteSubmissionJournal,

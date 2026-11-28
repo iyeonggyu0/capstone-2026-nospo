@@ -5,6 +5,7 @@ vi.mock('./wikiDrafts', () => ({
   createWikiCharacterEntry: vi.fn(),
   createWikiCharacterProfile: vi.fn(),
   createWikiDraft: vi.fn(),
+  createWikiRelation: vi.fn(),
   submitWikiDraft: vi.fn(),
   uploadWikiDraftAsset: vi.fn(),
 }))
@@ -154,5 +155,37 @@ it.each(['entry', 'submit'])('서버 초안 충돌(%s)은 복구 경로를 제�
 it('탭 간 잠금이 없는 환경에서는 요청을 보내지 않는다', async () => {
   vi.stubGlobal('navigator', {})
   await expect(submitPersonDraft(input)).rejects.toThrow('동시 제출')
+  expect(api.createWikiDraft).not.toHaveBeenCalled()
+})
+
+it('관계 대상을 초안 인물 ID로 변환하고 대상이 없으면 저장 전에 거부한다', async () => {
+  const related = {
+    ...input,
+    people: [
+      { ...input.people[0], relations: { 우호: [{ name: '상대', revealAt: 4 }] } },
+      { id: 'p2', name: '상대', firstRevealAt: 3 },
+    ],
+  }
+  api.createWikiCharacter
+    .mockResolvedValueOnce({ data: { entityId: 'first' }, etag: '"2"' })
+    .mockResolvedValueOnce({ data: { entityId: 'second' }, etag: '"4"' })
+  api.createWikiRelation.mockResolvedValue({ data: { relationId: 'relation' }, etag: '"5"' })
+  await submitPersonDraft(related)
+  expect(api.createWikiRelation).toHaveBeenCalledWith({
+    draftId: 'draft',
+    fromId: 'first',
+    toId: 'second',
+    type: 'FRIENDLY',
+    position: { unit: 'PAGE', value: 4 },
+    etag: '"4"',
+  })
+  journal = undefined
+  api.createWikiDraft.mockClear()
+  await expect(
+    submitPersonDraft({
+      ...input,
+      people: [{ ...input.people[0], relations: { 우호: [{ name: '없는 인물', revealAt: 4 }] } }],
+    }),
+  ).rejects.toThrow('관계 대상')
   expect(api.createWikiDraft).not.toHaveBeenCalled()
 })
